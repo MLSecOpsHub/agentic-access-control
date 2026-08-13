@@ -16,8 +16,14 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
   const inst = s.instances.find((i) => i.id === id);
   if (!inst) notFound();
 
+  // Display grouping only (deny, ask, allow) — deliberately NOT an
+  // evaluation-order claim; see local/mvp-review-accuracy-analysis.md (F1).
+  const effectOrder = { deny: 0, ask: 1, allow: 2 } as const;
   const rules = [...inst.permissionRules].sort(
-    (a, b) => a.precedenceRank - b.precedenceRank || a.matcher.localeCompare(b.matcher),
+    (a, b) =>
+      effectOrder[a.effect] - effectOrder[b.effect] ||
+      a.sourceLevel.localeCompare(b.sourceLevel) ||
+      a.matcher.localeCompare(b.matcher),
   );
   const servers = s.mcpServers.filter((m) => m.instanceId === inst.id);
   const findings = sortFindings(s.findings.filter((f) => f.instanceId === inst.id));
@@ -38,16 +44,16 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
       </p>
       <SnapshotMeta current={current} />
 
-      <h2>Effective permission rules ({rules.length})</h2>
+      <h2>Configured permission declarations ({rules.length})</h2>
       <p className="meta">
-        Ordered by our documented precedence interpretation — position 1 is evaluated first (SR4:
-        verify against the source file).
+        Declarations merged from all settings tiers, grouped by effect for display with per-rule
+        provenance. This table does not claim evaluation order — the platform&apos;s own evaluator
+        is ground truth (SR4: verify against the source file).
       </p>
       <div className="tablewrap">
         <table>
           <thead>
             <tr>
-              <th>#</th>
               <th>Effect</th>
               <th>Matcher</th>
               <th className="hide-sm">Level</th>
@@ -57,7 +63,6 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
           <tbody>
             {rules.map((r, i) => (
               <tr key={i}>
-                <td>{i + 1}</td>
                 <td><EffectBadge effect={r.effect} /></td>
                 <td><code>{r.matcher}</code></td>
                 <td className="hide-sm"><span className="pill">{r.sourceLevel}</span></td>
@@ -66,7 +71,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
             ))}
             {rules.length === 0 && (
               <tr>
-                <td colSpan={5} className="meta">
+                <td colSpan={4} className="meta">
                   No explicit rules — the platform&apos;s defaults apply.
                 </td>
               </tr>

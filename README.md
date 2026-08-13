@@ -2,7 +2,7 @@
 
 AgentLens answers one question: **what are the AI agents on this machine currently allowed to do?**
 
-It discovers agent/LLM tooling installed locally (Claude Code, Codex CLI, Gemini CLI, generic MCP configurations), reads their permission-relevant configuration **read-only**, normalizes it into one canonical schema, and renders it in a local dashboard: effective permission rules with provenance, MCP server inventory, sandbox/hook posture, risk findings, and drift between snapshots.
+It discovers agent/LLM tooling installed locally (Claude Code, Codex CLI, Gemini CLI, generic MCP configurations), reads their permission-relevant configuration **read-only**, normalizes it into one canonical schema, and renders it in a local dashboard: configured permission declarations with provenance, MCP server inventory, sandbox/hook posture, risk findings, and drift between snapshots.
 
 ## What it is — and is not
 
@@ -45,4 +45,4 @@ The dashboard renders the newest snapshot in `data/snapshots/`, falling back to 
 
 ## Security posture in one paragraph
 
-Collectors open files read-only from an allowlist of known config locations (SR1) and redact secret-shaped values before anything touches disk (SR2). The dashboard binds to 127.0.0.1 and makes zero outbound requests (SR3) — a map of your machine's agent attack surface is itself sensitive. Every permission view carries the caveat that it is a best-effort *interpretation* of each platform's precedence rules, not proof of enforcement (SR4). Snapshots are content-hashed so drift is tamper-evident (SR5). Details: [docs/security-architecture.md](docs/security-architecture.md).
+Collectors open files read-only from an allowlist of known config locations (SR1) and redact secret-shaped values before anything touches disk (SR2). The dashboard binds to 127.0.0.1 and makes zero outbound requests (SR3) — a map of your machine's agent attack surface is itself sensitive. Every permission view carries the caveat that it shows *configured declarations*, not proof of enforcement (SR4). Snapshots are content-hashed for tamper evidence (SR5). Details and current known gaps: [docs/security-architecture.md](docs/security-architecture.md); hardening plan: `local/hardening-roadmap.md`.

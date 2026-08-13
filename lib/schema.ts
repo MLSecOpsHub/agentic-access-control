@@ -71,6 +71,8 @@ export type Severity = z.infer<typeof SeveritySchema>;
 
 export const RiskFindingSchema = z.object({
   id: z.string(),
+  // "H5" is retired (asserted the opposite of documented deny-first semantics)
+  // but stays in the enum so snapshots collected before its removal still parse.
   heuristicId: z.enum(["H1", "H2", "H3", "H4", "H5", "H6", "H7", "PARSE"]),
   severity: SeveritySchema,
   title: z.string(),

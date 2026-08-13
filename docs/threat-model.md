@@ -32,7 +32,7 @@ Scope: the AgentLens pipeline (collectors → normalizer → snapshot store → 
 | T7 | Tampering (staleness) | Decisions made on an old snapshot ("that deny exists" — removed yesterday) | B3 | `generatedAt` age always rendered, warning styling past threshold | Low |
 | T8 | Tampering | M2/M3 edits a snapshot to hide a finding (A3) | B3 | SR5 content hash, integrity warning on mismatch | Medium — local attacker can re-hash; signing is roadmap |
 | T9 | Denial of service | Parser bomb: multi-GB JSON, deeply nested structures in a cloned repo | B1 | File-size cap before parse, parse in try/catch → `info` finding | Low |
-| T10 | Elevation | npm dependency compromise (M4) | build | 4 runtime/dev deps, committed lockfile, no postinstall, review on bump | Medium — industry-standard, not solved |
+| T10 | Elevation | npm dependency compromise (M4) | build | 4 direct runtime/dev deps, committed lockfile, review on bump. Transitive deps (esbuild, sharp, fsevents) carry install scripts | Medium — industry-standard, not solved |
 | T11 | Tampering (A4) | A code path writes to an agent config (bug, not attack) | B1 | SR1 design (no write APIs imported in collector modules), mtime-invariance test in CI | Low |
 
 ## 4. OWASP Agentic Top 10 mapping
@@ -41,7 +41,7 @@ AgentLens is not an agent — it has no model, no tool loop — so most ASI item
 
 | OWASP ASI | Relation |
 |---|---|
-| **ASI03 Identity & Privilege Abuse** | The product's reason to exist: renders privilege sprawl (F2), over-permissive posture (H1/H2), shadowed denies (H5). This is the anchor per the landscape doc. |
+| **ASI03 Identity & Privilege Abuse** | The product's reason to exist: renders privilege sprawl (F2) and over-permissive posture (H1/H2). This is the anchor per the landscape doc. |
 | ASI02 Tool Misuse | MCP inventory (F3) + unpinned-server and secret-env heuristics (H3/H4) give the pre-conditions view |
 | ASI05 Insecure Config | The whole surface: bypass modes, disabled sandboxes (H1/H6) |
 | *Applies to AgentLens itself:* | |

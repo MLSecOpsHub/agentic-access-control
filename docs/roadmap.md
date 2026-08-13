@@ -3,7 +3,7 @@
 ## Phase 1 — Local-first MVP (this repo, now)
 
 - Claude Code collector (full) + generic MCP collector; Codex CLI and Gemini CLI collectors spec'd and stubbed ([collectors.md](collectors.md) §3–4).
-- Dashboard: overview, per-instance effective permissions, MCP inventory, findings, drift.
+- Dashboard: overview, per-instance configured permissions, MCP inventory, findings, drift.
 - SR1–SR5 implemented and tested per [security-architecture.md](security-architecture.md).
 
 **Exit criteria:** the four success criteria in [product-spec.md](product-spec.md) §8.

@@ -42,8 +42,8 @@ Collectors must not modify agent configuration or any file outside `data/snapsho
 
 ### SR2 — Secrets redaction at collection time
 Secret material must never reach the snapshot file, therefore never the DOM.
-- Redaction happens in the collector, before the snapshot object is assembled — not at render time. A snapshot on disk is safe to attach to a bug report.
-- MCP `env` values dropped unconditionally (key names kept — they power heuristic H4). Pattern-based redaction over all other strings (patterns in [collectors.md](collectors.md) §1.2, implemented in `lib/redact.ts`).
+- Redaction happens in the collector, before the snapshot object is assembled — not at render time. Until the Step 4 test suite proves this end-to-end, treat snapshots as sensitive files, not shareable artifacts.
+- MCP `env` values dropped unconditionally (key names kept — they power heuristic H4). Pattern-based redaction over rule matchers, commands, args, URLs, and hook bodies (patterns in [collectors.md](collectors.md) §1.2, implemented in `lib/redact.ts`). **Known gaps** (verified 2026-08-13, fix scheduled as roadmap Step 2): persisted JSON parse-error messages can echo config content, and some scalar fields (`defaultMode`, hook event names) bypass redaction — see `local/mvp-review-accuracy-analysis.md` F3.
 - Bias to over-redaction: a mangled command display is acceptable; a leaked token is not. (Pattern precedent: `l-mb/claude-code-redaction-hooks` from the landscape research.)
 - **Test:** fixture configs seeded with fake secrets of every pattern class; assert none survive into the snapshot; CI grep of generated snapshots for `sk-`, `AKIA`, `ghp_`, `Bearer`.
 
@@ -55,14 +55,14 @@ The dashboard aggregates a complete map of the machine's agent attack surface �
 - **Test:** crawl rendered pages for external URLs in `src`/`href` of loadable resources; run collector and server under network observation in CI and assert no egress.
 
 ### SR4 — Interpretation honesty
-Rendered "effective permissions" are our re-implementation of each platform's precedence semantics. The platform's real evaluator is the only ground truth, and platforms change semantics without notice.
+Rendered permission views show *configured declarations* with provenance — not a re-implementation of the platform's evaluator, whose semantics are the only ground truth and change without notice. An evaluation-order view returns only when backed by vendor-conformance tests (hardening roadmap Step 5).
 - Persistent banner on every page: interpretation, not enforcement; link to per-platform precedence spec in [collectors.md](collectors.md) with vendor-doc references.
 - Every rule row carries provenance (`sourceFile`, `sourceLevel`) so users can verify against the raw file in one step.
 - Parse-divergence risk is a first-class threat (T5), and known mapping losses (Codex, Gemini) are recorded on the instance, not hidden.
 - This requirement is the product's answer to the landscape doc's core L2 critique: never let observation cosplay as enforcement.
 
 ### SR5 — Tamper-evident snapshots
-- Each snapshot embeds a SHA-256 over its canonicalized body (hash field excluded); the UI recomputes on load and shows an integrity warning on mismatch.
+- Each snapshot embeds a SHA-256 over its canonicalized body (hash field excluded); the UI recomputes on load and shows an integrity warning on mismatch. **Known gap** (fix scheduled as roadmap Step 3): verification currently runs after schema validation, which strips unknown fields — so the implemented guarantee is known-schema object integrity, not whole-file integrity; drift is also not yet gated on hash verification.
 - Drift is always computed from two hash-verified snapshots; it is derived at render time and never stored (no third artifact to tamper with).
 - This is tamper-*evidence*, not tamper-*proofing*: an attacker with local write access can re-hash. Signing snapshots is a roadmap item; the honest v1 claim is "detects accidental edits and unsophisticated tampering."
 
@@ -70,11 +70,11 @@ Rendered "effective permissions" are our re-implementation of each platform's pr
 
 | Attack | Mitigation |
 |---|---|
-| Stored XSS via adversarial config strings (a matcher named `<img onerror=…>`) | React default escaping only — no `dangerouslySetInnerHTML` anywhere in the codebase (lint-enforced); no markdown rendering of config content |
-| Path traversal via crafted project structure (symlink from a scanned repo → `/etc`, `~/.ssh`) | Allowlisted globs, no symlink following, depth cap, resolved-path prefix check before every read |
+| Stored XSS via adversarial config strings (a matcher named `<img onerror=…>`) | React default escaping only — no `dangerouslySetInnerHTML` anywhere in the codebase (convention today; lint enforcement lands with roadmap Step 4); no markdown rendering of config content |
+| Path traversal via crafted project structure (symlink from a scanned repo → `/etc`, `~/.ssh`) | Allowlisted globs, symlink entries skipped during traversal, depth cap. A resolved-path prefix check is specified but not yet implemented (roadmap Step 4/5) |
 | Snapshot poisoning (edit snapshot to hide a finding before a review) | SR5 hash check; findings recomputable from raw rules client-side in a later version |
 | Exfiltration of the aggregated map | SR3: no egress, localhost bind, snapshots gitignored |
-| Dependency supply chain | Minimal dependency set (next, react, zod, tsx); lockfile committed; no postinstall scripts |
+| Dependency supply chain | Minimal direct dependency set (next, react, zod, tsx); lockfile committed. Note: transitive dependencies (esbuild, sharp, fsevents) do carry install scripts — review on every bump |
 
 ## 5. Explicit non-guarantees
 

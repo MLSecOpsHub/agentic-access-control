@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <b>Read-only interpretation, not enforcement.</b> AgentLens renders a best-effort
             reading of each platform&apos;s permission precedence from its config files. The
             platform&apos;s own evaluator is the only ground truth — verify against the source
-            file linked on each rule. Docs: <code>docs/collectors.md</code>.
+            file shown on each rule. Docs: <code>docs/collectors.md</code>.
           </div>
           {children}
           <footer>

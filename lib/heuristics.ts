@@ -1,7 +1,10 @@
 import type { AgentInstance, McpServer, RiskFinding, Severity } from "./schema";
 
-// Risk heuristics H1–H7 (docs/collectors.md §6). Pure functions over the
-// normalized data — they never touch disk, so they are testable on fixtures.
+// Risk heuristics (docs/collectors.md §6). Pure functions over the normalized
+// data — they never touch disk, so they are testable on fixtures.
+// H5 ("deny shadowed by broader allow") is RETIRED: first-party docs specify
+// global deny → ask → allow evaluation across all settings files, so a deny is
+// never shadowed by an allow. See local/mvp-review-accuracy-analysis.md (F1).
 
 const RISKY_BARE_TOOLS = new Set(["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit"]);
 const SECRET_KEY = /(TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL)/i;
@@ -54,21 +57,6 @@ export function runHeuristics(ctx: Ctx): RiskFinding[] {
           add("H2", "high", `Wildcard allow rule "${rule.matcher}"`,
             `${rule.effect} ${rule.matcher} (${rule.sourceLevel})`, inst.id, rule.sourceFile);
         }
-      }
-    }
-
-    // H5 — deny rule co-existing with a broader allow on the same tool.
-    const allowsByTool = new Map<string, string[]>();
-    for (const r of inst.permissionRules) {
-      if (r.effect !== "allow" || !r.tool) continue;
-      const broad =
-        r.matcher === "*" || r.matcher === r.tool || /^[A-Za-z]+\(\s*\*(:\*)?\s*\)$/.test(r.matcher);
-      if (broad) allowsByTool.set(r.tool, [...(allowsByTool.get(r.tool) ?? []), r.matcher]);
-    }
-    for (const r of inst.permissionRules) {
-      if (r.effect === "deny" && r.tool && allowsByTool.has(r.tool)) {
-        add("H5", "medium", `Deny "${r.matcher}" shadowed by broader allow on ${r.tool}`,
-          `deny ${r.matcher} vs allow ${allowsByTool.get(r.tool)!.join(", ")}`, inst.id, r.sourceFile);
       }
     }
 

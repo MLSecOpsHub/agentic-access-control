@@ -2,7 +2,7 @@
   "schemaVersion": "0.1.0",
   "generatedAt": "2026-08-13T02:00:00.000Z",
   "machineId": "f1x7u2e0demo",
-  "hash": "22726240c137c02d3ca61d34004b3c2a488533736a4f7b1e32e7764f505be004",
+  "hash": "88d8b6f091fa6853a386b4427fbfa4afaba6b34b5af1b90f0b9cf03f304f4fcf",
   "collectors": [
     "claude-code",
     "generic-mcp",
@@ -235,16 +235,7 @@
       "sourceFile": "~/work/payments-service/.claude/settings.local.json"
     },
     {
-      "id": "H5:claude-code:project:a1b2c3d4:2",
-      "heuristicId": "H5",
-      "severity": "medium",
-      "title": "Deny \"Bash(rm -rf:*)\" shadowed by broader allow on Bash",
-      "evidence": "deny Bash(rm -rf:*) vs allow Bash",
-      "instanceId": "claude-code:project:a1b2c3d4",
-      "sourceFile": "~/.claude/settings.json"
-    },
-    {
-      "id": "H6:claude-code:project:a1b2c3d4:3",
+      "id": "H6:claude-code:project:a1b2c3d4:2",
       "heuristicId": "H6",
       "severity": "medium",
       "title": "Sandbox disabled",
@@ -253,7 +244,7 @@
       "sourceFile": "~/.claude/settings.json"
     },
     {
-      "id": "H7:claude-code:project:a1b2c3d4:4",
+      "id": "H7:claude-code:project:a1b2c3d4:3",
       "heuristicId": "H7",
       "severity": "low",
       "title": "PostToolUse hook pipes remote content to a shell",
@@ -262,7 +253,7 @@
       "sourceFile": "~/work/payments-service/.claude/settings.local.json"
     },
     {
-      "id": "H3:claude-code:project:a1b2c3d4:5",
+      "id": "H3:claude-code:project:a1b2c3d4:4",
       "heuristicId": "H3",
       "severity": "high",
       "title": "MCP server \"github\" launched via unpinned package runner",
@@ -271,7 +262,7 @@
       "sourceFile": "~/work/payments-service/.mcp.json"
     },
     {
-      "id": "H4:claude-code:project:a1b2c3d4:6",
+      "id": "H4:claude-code:project:a1b2c3d4:5",
       "heuristicId": "H4",
       "severity": "high",
       "title": "MCP server \"github\" configured with credential env: GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -280,7 +271,7 @@
       "sourceFile": "~/work/payments-service/.mcp.json"
     },
     {
-      "id": "H4:claude-code:project:a1b2c3d4:7",
+      "id": "H4:claude-code:project:a1b2c3d4:6",
       "heuristicId": "H4",
       "severity": "high",
       "title": "MCP server \"postgres-readonly\" configured with credential env: PGPASSWORD",
@@ -289,7 +280,7 @@
       "sourceFile": "~/work/payments-service/.mcp.json"
     },
     {
-      "id": "H3:generic-mcp:project:e5f6a7b8:8",
+      "id": "H3:generic-mcp:project:e5f6a7b8:7",
       "heuristicId": "H3",
       "severity": "high",
       "title": "MCP server \"browser-tools\" launched via unpinned package runner",

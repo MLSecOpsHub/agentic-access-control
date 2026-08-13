@@ -15,8 +15,8 @@ export default async function Findings() {
       <h1>Risk findings ({findings.length})</h1>
       <SnapshotMeta current={current} />
       <p className="meta">
-        Heuristics H1–H7 are documented in <code>docs/collectors.md</code> §6; PARSE entries mean a
-        config could not be fully read, so coverage there is incomplete. Evidence is shown
+        Heuristics are documented in <code>docs/collectors.md</code> §6 (H5 retired); PARSE entries
+        mean a config could not be fully read, so coverage there is incomplete. Evidence is shown
         post-redaction (SR2).
       </p>
       <div className="tablewrap">
@@ -44,7 +44,7 @@ export default async function Findings() {
               </tr>
             ))}
             {findings.length === 0 && (
-              <tr><td colSpan={5} className="meta">No findings — posture is clean under H1–H7.</td></tr>
+              <tr><td colSpan={5} className="meta">No heuristic matches in the collected data. Absence of findings is not proof of a clean posture — coverage is limited to the implemented heuristics and collected sources.</td></tr>
             )}
           </tbody>
         </table>

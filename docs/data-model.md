@@ -19,7 +19,7 @@ Everything below is contained in one **Snapshot** — an immutable, content-hash
 
 ## AgentInstance
 
-One (platform × scope × project) combination. A user-level Claude Code config and a project-level one are **two instances**, because their effective permissions differ.
+One (platform × scope × project) combination. A user-level Claude Code config and a project-level one are **two instances**, because their configured permission sets differ.
 
 | Field | Type | Semantics |
 |---|---|---|
@@ -43,7 +43,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | `tool` | string \| null | Parsed tool name when extractable from the matcher |
 | `sourceFile` | string | Exact file that contributed the rule |
 | `sourceLevel` | `"managed" \| "user" \| "project" \| "local" \| "flag"` | Settings tier |
-| `precedenceRank` | number | Lower = evaluated first under our documented interpretation of the platform's precedence (SR4: interpretation, not ground truth) |
+| `precedenceRank` | number | ⚠️ Legacy display-ordering value using a level-first encoding that does **not** match vendor rule-evaluation semantics (global deny → ask → allow). The UI no longer shows it as evaluation order; scheduled for reimplementation in roadmap Step 5 |
 
 **Effect normalization note:** Claude Code's `deny → ask → allow` maps directly. Codex CLI approval policies and Gemini CLI trust settings map with loss; the collector spec ([collectors.md](collectors.md)) defines each mapping and the UI shows the native construct on hover/detail.
 
@@ -83,7 +83,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | Field | Type | Semantics |
 |---|---|---|
 | `id` | string | Stable within a snapshot: `heuristicId:instanceId:n` |
-| `heuristicId` | `"H1"…"H7" \| "PARSE"` | H1–H7 defined in [collectors.md](collectors.md) §6; `PARSE` marks an unreadable config (severity `info`) |
+| `heuristicId` | `"H1"…"H7" \| "PARSE"` | Defined in [collectors.md](collectors.md) §6; `PARSE` marks an unreadable config (severity `info`); `H5` is retired (kept in the enum only so old snapshots parse) |
 | `severity` | `"critical" \| "high" \| "medium" \| "low" \| "info"` | |
 | `title` | string | One line, human-readable |
 | `evidence` | string | The config fragment (post-redaction) that triggered the finding |

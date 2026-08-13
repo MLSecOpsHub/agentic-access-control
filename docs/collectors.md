@@ -5,23 +5,25 @@ Collectors are read-only filesystem readers. Shared contract, then one section p
 ## 1. Shared collector contract
 
 1. **SR1 — read-only.** Open with read-only intent; never create, write, or touch anything outside the snapshot output directory (`data/snapshots/`). No child processes that could mutate state; version detection via `--version` subprocess is the only allowed exec, and it must be the platform binary with that single flag. Never *execute* an MCP server to enumerate tools.
-2. **SR2 — redact before persist.** All collected strings pass through the redactor (`lib/redact.ts`) before entering the snapshot object. Env **values** are dropped unconditionally (key names survive). Secret-shaped substrings anywhere else (commands, args, URLs, hook bodies) are replaced with `[REDACTED]`. Patterns include: `sk-…`, `ghp_`/`gho_`/`github_pat_`, `AKIA…`, `xoxb-`/`xoxp-`, `Bearer <token>`, `key=`/`token=`/`secret=`/`password=` value captures, JWT triplets, and ≥32-char high-entropy base64/hex runs. False positives are acceptable; false negatives are the failure mode.
+2. **SR2 — redact before persist.** Collected strings pass through the redactor (`lib/redact.ts`) before entering the snapshot object: rule matchers, MCP commands/args/URLs, hook command bodies, sandbox allowlists. Env **values** are dropped unconditionally (key names survive). *Known gaps pending roadmap Step 2: parse-error messages and some scalar fields (`defaultMode`, hook event names) currently bypass redaction — see `local/mvp-review-accuracy-analysis.md` F3.* Secret-shaped substrings anywhere else (commands, args, URLs, hook bodies) are replaced with `[REDACTED]`. Patterns include: `sk-…`, `ghp_`/`gho_`/`github_pat_`, `AKIA…`, `xoxb-`/`xoxp-`, `Bearer <token>`, `key=`/`token=`/`secret=`/`password=` value captures, JWT triplets, and ≥32-char high-entropy base64/hex runs. False positives are acceptable; false negatives are the failure mode.
 3. **Allowlisted paths only.** Each collector declares the exact glob set below; nothing else is read. Project scanning is limited to roots passed explicitly (`npm run collect -- <root>...`, default: cwd), max depth 4, skipping `node_modules`, `.git`, and symlinks (path-traversal guard, threat T4).
 4. **Malformed input is data.** Config files are untrusted content. Parse failures produce an `info` finding, never a crash; parsed strings are stored verbatim (post-redaction) and only ever rendered escaped.
 5. **Absence is not knowledge.** If a platform's binary/config isn't found, the collector reports nothing and the snapshot's `collectors` list still names it as *ran* — the UI distinguishes "ran, found nothing" from "didn't run".
 
 ## 2. Claude Code collector (`claude-code`) — implemented in v1
 
-### Files read, in precedence order (our interpretation — SR4)
+### Files read (settings tiers)
 
-| Rank | Level | Path | Notes |
-|---|---|---|---|
-| 1 | `managed` | `/etc/claude-code/managed-settings.json` (Linux), `/Library/Application Support/ClaudeCode/managed-settings.json` (macOS) | Admin-enforced; wins over everything |
-| 2 | `local` | `<project>/.claude/settings.local.json` | Per-checkout, usually gitignored |
-| 3 | `project` | `<project>/.claude/settings.json` | Checked in — team-visible |
-| 4 | `user` | `~/.claude/settings.json` | |
+| Level | Path | Notes |
+|---|---|---|
+| `managed` | `/etc/claude-code/managed-settings.json` (Linux), `/Library/Application Support/ClaudeCode/managed-settings.json` (macOS) | Admin-enforced; cannot be overridden |
+| `local` | `<project>/.claude/settings.local.json` | Per-checkout, usually gitignored. ⚠️ Vendor docs load this from the **git repository root**; the collector currently reads it from each scanned root (gap, roadmap Step 5) |
+| `project` | `<project>/.claude/settings.json` | Checked in — team-visible |
+| `user` | `~/.claude/settings.json` | |
 
-Within a level, `deny` beats `ask` beats `allow`. `precedenceRank` encodes (level, effect) lexicographically so the UI can sort a merged table.
+**Rule evaluation semantics (per first-party docs, verified 2026-08-13):** permission rule lists are *merged across all settings files* and evaluated globally as `deny → ask → allow` — "the first match in that order determines the outcome, and rule specificity doesn't change the order." A deny in any tier wins over an allow in any other tier. Tier precedence applies to **single-value settings** (`defaultMode`, `disableBypassPermissionsMode`, sandbox config), not to rule evaluation.
+
+⚠️ The collector's stored `precedenceRank` still encodes a level-first ordering that predates this verification and is **not** the vendor semantics; the UI therefore displays rules grouped by effect with provenance and makes no evaluation-order claim. A correct precedence engine is roadmap Step 5.
 
 ### Extracted per file
 
@@ -49,7 +51,7 @@ Within a level, `deny` beats `ask` beats `allow`. `precedenceRank` encodes (leve
 
 ## 5. Generic MCP collector (`generic-mcp`) — implemented in v1
 
-- Files: any `mcp.json` / `.mcp.json` / `*.mcp.json` in scanned roots not already claimed by a platform collector (e.g. editor-agnostic configs, `.vscode/mcp.json`, `.cursor/mcp.json`).
+- Files: any file named exactly `mcp.json` in scanned roots (covers `.vscode/mcp.json`, `.cursor/mcp.json`). `.mcp.json` is claimed by the claude-code collector; broader `*.mcp.json` patterns are spec'd but not yet implemented.
 - Produces a `generic-mcp` instance per file with `McpServer` rows only.
 
 ## 6. Risk heuristics (v1)
@@ -60,8 +62,8 @@ Within a level, `deny` beats `ask` beats `allow`. `precedenceRank` encodes (leve
 | H2 | high | Wildcard allow: matcher `*`, bare tool with `:*`/`(*)` on Bash/Write/Edit-class tools | Unbounded tool surface |
 | H3 | high | stdio MCP server launched via unpinned `npx -y` / `uvx` / `pipx run` | Executes latest upstream on every start — supply-chain exposure; landscape notes stdio is outside the MCP auth spec entirely |
 | H4 | high | MCP `env` contains secret-suggestive key names (`*_TOKEN`, `*_KEY`, `*_SECRET`, `*_PASSWORD`) | Long-lived creds in agent-readable config (values already redacted by SR2; finding cites key names) |
-| H5 | medium | Deny rule co-exists with a broader allow on the same tool (e.g. `deny Bash(rm:*)` + `allow Bash`) | Interpretation-dependent shadowing; per-platform precedence should protect, but it's the classic footgun |
+| ~~H5~~ | — | **Retired 2026-08-13.** Flagged "deny shadowed by broader allow" — the opposite of documented behavior (deny wins globally). Kept in the schema enum for old snapshots only | See `local/mvp-review-accuracy-analysis.md` F1 |
 | H6 | medium | Sandbox disabled or `allowUnsandboxedCommands: true` where the platform offers sandboxing | Filesystem/network confinement off |
-| H7 | low | Hook command pipes remote content to a shell (`curl … \| sh` shape) or references files outside the project and home config dirs | Hook = arbitrary code in the agent loop |
+| H7 | low | Hook command pipes remote content to a shell (`curl … \| sh` shape). *(The outside-path clause of the original spec is not yet implemented — roadmap Step 5)* | Hook = arbitrary code in the agent loop |
 
 Each heuristic yields a `RiskFinding` with post-redaction evidence. Heuristics are pure functions over the normalized snapshot — they never re-read disk — so they are testable against fixtures.

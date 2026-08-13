@@ -8,7 +8,7 @@ AI agents with tool access are configured by scattered, overlapping, mutually-sh
 
 ## 2. Product statement
 
-> A read-only, local-only dashboard that inventories every AI agent instance on a machine, shows each one's effective permissions with file-level provenance, inventories configured MCP servers, flags risky posture, and diffs snapshots over time.
+> A read-only, local-only dashboard that inventories every AI agent instance on a machine, shows each one's configured permissions with file-level provenance, inventories configured MCP servers, flags risky posture, and diffs snapshots over time.
 
 Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We adopt the doc's own evaluation question — *"does this product see the tool call before it executes, or does it read logs afterward?"* — and answer honestly: neither; we read **configuration**, ahead of time. That distinction appears in the UI (SR4 banner).
 
@@ -23,9 +23,9 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 ## 4. Jobs to be done
 
 1. **Inventory** — "List every agent instance (platform × scope) on this machine and the config files that define it."
-2. **Effective permissions** — "For an instance, show the merged allow/ask/deny rule set, ordered by precedence, each rule traceable to its source file."
+2. **Configured permissions** — "For an instance, show the merged allow/ask/deny declarations across all settings tiers, each rule traceable to its source file." (An evaluation-order view returns only once backed by vendor-conformance tests — hardening roadmap Step 5.)
 3. **MCP surface** — "List every configured MCP server: transport, command/URL, env key names, declaring file."
-4. **Risk** — "Flag posture that a security reviewer would flag: bypass modes, wildcard allows, unpinned `npx -y` servers, secret-bearing env, shadowed denies, disabled sandboxes."
+4. **Risk** — "Flag posture that a security reviewer would flag: bypass modes, wildcard allows, unpinned `npx -y` servers, secret-bearing env, disabled sandboxes."
 5. **Drift** — "Diff the two most recent snapshots at rule level."
 
 ## 5. MVP feature list
@@ -33,10 +33,10 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 | # | Feature | Notes |
 |---|---|---|
 | F1 | Agent instance inventory | Platforms: Claude Code (full), Codex CLI + Gemini CLI (spec'd, stubbed), generic `mcp.json` |
-| F2 | Effective-permission view | Rules table per instance: effect, matcher, source file, precedence rank; deny > ask > allow ordering per platform docs |
+| F2 | Configured-permission view | Rules table per instance: effect, matcher, source file, settings level — grouped by effect for display, explicitly not an evaluation-order claim |
 | F3 | MCP server inventory | Env **key names only** — values redacted at collection (SR2) |
 | F4 | Sandbox & hook posture | Sandbox enabled/escape flags; hook event + truncated command preview |
-| F5 | Risk findings | Heuristics H1–H7 (see [collectors.md](collectors.md) §5) with severity + evidence |
+| F5 | Risk findings | Heuristics (see [collectors.md](collectors.md) §6; H5 retired) with severity + evidence |
 | F6 | Snapshot drift | Rule-level added/removed/changed between two newest snapshots; content hashes shown |
 | F7 | Interpretation banner | Persistent SR4 caveat on every page |
 
