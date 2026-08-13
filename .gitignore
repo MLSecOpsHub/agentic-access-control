@@ -6,3 +6,6 @@ next-env.d.ts
 
 # SR3: snapshots contain this machine's agent permission map — never committed by default
 data/snapshots/*.json
+
+# Misc
+local/
