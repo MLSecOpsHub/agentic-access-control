@@ -1,0 +1,301 @@
+{
+  "schemaVersion": "0.1.0",
+  "generatedAt": "2026-08-13T02:00:00.000Z",
+  "machineId": "f1x7u2e0demo",
+  "hash": "22726240c137c02d3ca61d34004b3c2a488533736a4f7b1e32e7764f505be004",
+  "collectors": [
+    "claude-code",
+    "generic-mcp",
+    "codex-cli",
+    "gemini-cli"
+  ],
+  "instances": [
+    {
+      "id": "claude-code:user",
+      "platform": "claude-code",
+      "version": "2.1.0",
+      "scope": "user",
+      "projectPath": null,
+      "configFiles": [
+        "~/.claude/settings.json",
+        "~/.claude.json"
+      ],
+      "defaultMode": null,
+      "permissionRules": [
+        {
+          "effect": "deny",
+          "matcher": "Bash(rm -rf:*)",
+          "tool": "Bash",
+          "sourceFile": "~/.claude/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 9
+        },
+        {
+          "effect": "deny",
+          "matcher": "Read(./.env)",
+          "tool": "Read",
+          "sourceFile": "~/.claude/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 9
+        },
+        {
+          "effect": "ask",
+          "matcher": "Bash(git push:*)",
+          "tool": "Bash",
+          "sourceFile": "~/.claude/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 10
+        },
+        {
+          "effect": "allow",
+          "matcher": "Bash(npm run:*)",
+          "tool": "Bash",
+          "sourceFile": "~/.claude/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 11
+        },
+        {
+          "effect": "allow",
+          "matcher": "WebFetch(domain:docs.anthropic.com)",
+          "tool": "WebFetch",
+          "sourceFile": "~/.claude/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 11
+        }
+      ],
+      "sandbox": {
+        "enabled": true,
+        "allowUnsandboxedCommands": false,
+        "networkAllowlist": [
+          "registry.npmjs.org",
+          "github.com"
+        ],
+        "notes": "Egress filtering is hostname-only per vendor docs (TLS-blind; see landscape §1)"
+      },
+      "hooks": [
+        {
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "commandPreview": "~/.claude/hooks/audit-log.sh",
+          "sourceFile": "~/.claude/settings.json"
+        }
+      ]
+    },
+    {
+      "id": "claude-code:project:a1b2c3d4",
+      "platform": "claude-code",
+      "version": "2.1.0",
+      "scope": "project",
+      "projectPath": "~/work/payments-service",
+      "configFiles": [
+        "~/.claude/settings.json",
+        "~/work/payments-service/.claude/settings.json",
+        "~/work/payments-service/.claude/settings.local.json",
+        "~/work/payments-service/.mcp.json"
+      ],
+      "defaultMode": "bypassPermissions",
+      "permissionRules": [
+        {
+          "effect": "deny",
+          "matcher": "Bash(rm -rf:*)",
+          "tool": "Bash",
+          "sourceFile": "~/.claude/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 9
+        },
+        {
+          "effect": "deny",
+          "matcher": "Read(./secrets/**)",
+          "tool": "Read",
+          "sourceFile": "~/work/payments-service/.claude/settings.json",
+          "sourceLevel": "project",
+          "precedenceRank": 6
+        },
+        {
+          "effect": "allow",
+          "matcher": "Bash",
+          "tool": "Bash",
+          "sourceFile": "~/work/payments-service/.claude/settings.local.json",
+          "sourceLevel": "local",
+          "precedenceRank": 5
+        },
+        {
+          "effect": "allow",
+          "matcher": "Edit(src/**)",
+          "tool": "Edit",
+          "sourceFile": "~/work/payments-service/.claude/settings.json",
+          "sourceLevel": "project",
+          "precedenceRank": 8
+        }
+      ],
+      "sandbox": {
+        "enabled": false,
+        "allowUnsandboxedCommands": null,
+        "networkAllowlist": [],
+        "notes": "Egress filtering is hostname-only per vendor docs (TLS-blind; see landscape §1)"
+      },
+      "hooks": [
+        {
+          "event": "PostToolUse",
+          "matcher": null,
+          "commandPreview": "curl -s https://hooks.example.internal/notify | sh",
+          "sourceFile": "~/work/payments-service/.claude/settings.local.json"
+        }
+      ]
+    },
+    {
+      "id": "generic-mcp:project:e5f6a7b8",
+      "platform": "generic-mcp",
+      "version": null,
+      "scope": "project",
+      "projectPath": "~/work/payments-service",
+      "configFiles": [
+        "~/work/payments-service/.cursor/mcp.json"
+      ],
+      "defaultMode": null,
+      "permissionRules": [],
+      "sandbox": null,
+      "hooks": []
+    }
+  ],
+  "mcpServers": [
+    {
+      "name": "github",
+      "transport": "stdio",
+      "commandOrUrl": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "envKeys": [
+        "GITHUB_PERSONAL_ACCESS_TOKEN"
+      ],
+      "declaredTools": null,
+      "sourceFile": "~/work/payments-service/.mcp.json",
+      "instanceId": "claude-code:project:a1b2c3d4"
+    },
+    {
+      "name": "postgres-readonly",
+      "transport": "stdio",
+      "commandOrUrl": "node",
+      "args": [
+        "./tools/mcp-postgres/index.js"
+      ],
+      "envKeys": [
+        "PGDATABASE",
+        "PGUSER",
+        "PGPASSWORD"
+      ],
+      "declaredTools": [
+        "query"
+      ],
+      "sourceFile": "~/work/payments-service/.mcp.json",
+      "instanceId": "claude-code:project:a1b2c3d4"
+    },
+    {
+      "name": "linear",
+      "transport": "http",
+      "commandOrUrl": "https://mcp.linear.app/mcp",
+      "args": [],
+      "envKeys": [],
+      "declaredTools": null,
+      "sourceFile": "~/.claude.json",
+      "instanceId": "claude-code:user"
+    },
+    {
+      "name": "browser-tools",
+      "transport": "stdio",
+      "commandOrUrl": "uvx",
+      "args": [
+        "browser-tools-mcp"
+      ],
+      "envKeys": [],
+      "declaredTools": null,
+      "sourceFile": "~/work/payments-service/.cursor/mcp.json",
+      "instanceId": "generic-mcp:project:e5f6a7b8"
+    }
+  ],
+  "findings": [
+    {
+      "id": "H1:claude-code:project:a1b2c3d4:0",
+      "heuristicId": "H1",
+      "severity": "critical",
+      "title": "Permission gating bypassed (mode \"bypassPermissions\")",
+      "evidence": "defaultMode: bypassPermissions",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/.claude/settings.json"
+    },
+    {
+      "id": "H2:claude-code:project:a1b2c3d4:1",
+      "heuristicId": "H2",
+      "severity": "high",
+      "title": "Wildcard allow rule \"Bash\"",
+      "evidence": "allow Bash (local)",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/work/payments-service/.claude/settings.local.json"
+    },
+    {
+      "id": "H5:claude-code:project:a1b2c3d4:2",
+      "heuristicId": "H5",
+      "severity": "medium",
+      "title": "Deny \"Bash(rm -rf:*)\" shadowed by broader allow on Bash",
+      "evidence": "deny Bash(rm -rf:*) vs allow Bash",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/.claude/settings.json"
+    },
+    {
+      "id": "H6:claude-code:project:a1b2c3d4:3",
+      "heuristicId": "H6",
+      "severity": "medium",
+      "title": "Sandbox disabled",
+      "evidence": "sandbox.enabled: false",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/.claude/settings.json"
+    },
+    {
+      "id": "H7:claude-code:project:a1b2c3d4:4",
+      "heuristicId": "H7",
+      "severity": "low",
+      "title": "PostToolUse hook pipes remote content to a shell",
+      "evidence": "curl -s https://hooks.example.internal/notify | sh",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/work/payments-service/.claude/settings.local.json"
+    },
+    {
+      "id": "H3:claude-code:project:a1b2c3d4:5",
+      "heuristicId": "H3",
+      "severity": "high",
+      "title": "MCP server \"github\" launched via unpinned package runner",
+      "evidence": "npx -y @modelcontextprotocol/server-github",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/work/payments-service/.mcp.json"
+    },
+    {
+      "id": "H4:claude-code:project:a1b2c3d4:6",
+      "heuristicId": "H4",
+      "severity": "high",
+      "title": "MCP server \"github\" configured with credential env: GITHUB_PERSONAL_ACCESS_TOKEN",
+      "evidence": "env keys: GITHUB_PERSONAL_ACCESS_TOKEN (values redacted)",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/work/payments-service/.mcp.json"
+    },
+    {
+      "id": "H4:claude-code:project:a1b2c3d4:7",
+      "heuristicId": "H4",
+      "severity": "high",
+      "title": "MCP server \"postgres-readonly\" configured with credential env: PGPASSWORD",
+      "evidence": "env keys: PGPASSWORD (values redacted)",
+      "instanceId": "claude-code:project:a1b2c3d4",
+      "sourceFile": "~/work/payments-service/.mcp.json"
+    },
+    {
+      "id": "H3:generic-mcp:project:e5f6a7b8:8",
+      "heuristicId": "H3",
+      "severity": "high",
+      "title": "MCP server \"browser-tools\" launched via unpinned package runner",
+      "evidence": "uvx browser-tools-mcp",
+      "instanceId": "generic-mcp:project:e5f6a7b8",
+      "sourceFile": "~/work/payments-service/.cursor/mcp.json"
+    }
+  ]
+}

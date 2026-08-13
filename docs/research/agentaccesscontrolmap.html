@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Agent Access Control — Landscape Map</title>
+<style>
+:root{
+  --bg:#fbfaf9; --panel:#fff; --ink:#1c1b1a; --muted:#6b6764; --line:#e6e2de;
+  --accent:#b4532a; --accent-soft:#fdf1ea;
+  --oss:#2f6f4f; --oss-bg:#e9f4ee;
+  --com:#8a4fbf; --com-bg:#f3ecfa;
+  --nat:#2b5f9e; --nat-bg:#e9f0f9;
+  --warn:#a8541b; --warn-bg:#fdf0e4;
+  --dead:#8a8582; --dead-bg:#f0eeec;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#191817; --panel:#211f1e; --ink:#eceae8; --muted:#a5a09c; --line:#332f2d;
+    --accent:#e08050; --accent-soft:#2e211a;
+    --oss:#7cc4a0; --oss-bg:#1c2d24;
+    --com:#c39ae8; --com-bg:#282034;
+    --nat:#8ab4e8; --nat-bg:#1b2634;
+    --warn:#e0a165; --warn-bg:#302217;
+    --dead:#807b78; --dead-bg:#262322;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 20px 72px}
+header{margin-bottom:26px}
+h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em;font-weight:650}
+.sub{color:var(--muted);font-size:14px;margin:0}
+.note{background:var(--accent-soft);border-left:3px solid var(--accent);
+  padding:13px 16px;border-radius:0 7px 7px 0;margin:20px 0 24px;font-size:14px}
+.note b{color:var(--accent)}
+.controls{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px;
+  position:sticky;top:0;background:var(--bg);padding:12px 0;z-index:10;border-bottom:1px solid var(--line)}
+input[type=search]{flex:1;min-width:210px;padding:9px 13px;border:1px solid var(--line);
+  border-radius:7px;background:var(--panel);color:var(--ink);font-size:14px;font-family:inherit}
+input[type=search]:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.chip{padding:6px 13px;border:1px solid var(--line);border-radius:20px;background:var(--panel);
+  color:var(--muted);cursor:pointer;font-size:13px;font-family:inherit;transition:.12s}
+.chip:hover{border-color:var(--accent);color:var(--ink)}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.count{color:var(--muted);font-size:13px;margin-left:auto;white-space:nowrap}
+table{width:100%;border-collapse:collapse;background:var(--panel);
+  border:1px solid var(--line);border-radius:9px;overflow:hidden}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted);font-weight:600;padding:11px 13px;border-bottom:1px solid var(--line);
+  background:var(--bg);position:sticky;top:61px;z-index:5}
+td{padding:12px 13px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+.name{font-weight:600}
+.name a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+.name a:hover{color:var(--accent);border-color:var(--accent)}
+.meta{color:var(--muted);font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.t-oss{background:var(--oss-bg);color:var(--oss)}
+.t-com{background:var(--com-bg);color:var(--com)}
+.t-nat{background:var(--nat-bg);color:var(--nat)}
+.st{font-size:12.5px;font-weight:500}
+.s-ok{color:var(--oss)} .s-warn{color:var(--warn)} .s-dead{color:var(--dead)}
+.what{color:var(--muted);font-size:13.5px;max-width:400px}
+.L{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;
+  border-radius:5px;font-size:11.5px;font-weight:700;background:var(--bg);
+  border:1px solid var(--line);color:var(--muted)}
+.empty{padding:44px;text-align:center;color:var(--muted)}
+footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:12.5px;line-height:1.7}
+@media(max-width:760px){
+  .hide-sm{display:none} .wrap{padding:20px 13px 60px} th{top:57px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>AI Agent Access Control — Landscape Map</h1>
+  <p class="sub">Who actually controls what an AI agent can reach · compiled 3 Aug 2026 · GitHub stats &amp; M&amp;A claims independently verified</p>
+</header>
+
+<div class="note">
+  <b>Read the Layer column first.</b> <span class="L">0</span> native platform controls (free, already there) ·
+  <span class="L">1</span> in-path gateways &amp; sandboxes — <b>the only layer that literally blocks a tool call</b> ·
+  <span class="L">2</span> identity governance &amp; posture — discovers and scores, usually delegates enforcement back to L0/L1.
+  Most vendors marketing "agent access control" are L2.
+</div>
+
+<div class="controls">
+  <input type="search" id="q" placeholder="Search name, category, or what it does…" autocomplete="off">
+  <button class="chip" data-f="type" data-v="OSS" aria-pressed="false">Open source</button>
+  <button class="chip" data-f="type" data-v="Commercial" aria-pressed="false">Commercial</button>
+  <button class="chip" data-f="type" data-v="Native" aria-pressed="false">Native</button>
+  <button class="chip" data-f="layer" data-v="1" aria-pressed="false">L1 · enforces</button>
+  <button class="chip" data-f="user" data-v="1" aria-pressed="false">Individual-usable</button>
+  <button class="chip" data-f="ok" data-v="1" aria-pressed="false">Hide stale/beta</button>
+  <span class="count" id="count"></span>
+</div>
+
+<table>
+<thead><tr>
+  <th style="width:24px">L</th><th style="width:210px">Name</th><th style="width:88px">Type</th>
+  <th class="hide-sm" style="width:150px">Category</th><th>What it does</th>
+  <th class="hide-sm" style="width:120px">Status</th>
+</tr></thead>
+<tbody id="rows"></tbody>
+</table>
+<div class="empty" id="empty" hidden>No matches.</div>
+
+<footer>
+  <b>Corrections applied after adversarial verification:</b> Cisco/Astrix price is <i>undisclosed</i> (reports range $250M–$400M, sources conflict) ·
+  Google Gemini Agent Identity core feature went <b>GA 25 Jun 2026</b>, not Preview (only the auth-manager broker is still Preview) ·
+  <code>invariantlabs-ai/mcp-scan</code> silently moved to <code>snyk/agent-scan</code> post-acquisition ·
+  <code>centralmind/gateway</code> is 13 months dormant (a 2024 release date was misread as 2026) ·
+  Noma's $100M Series B was Jul 2025, not 2026.<br><br>
+  Star counts fetched from GitHub 3 Aug 2026. "Status" reflects last meaningful commit activity, not last release.
+  Full narrative, scenario matrix, standards status and whitespace analysis are in the companion markdown doc.
+</footer>
+</div>
+
+<script>
+const D=[
+// layer,name,url,type,cat,what,stars/funding,status,statusClass,individual
+[1,"anthropic-experimental/sandbox-runtime","https://github.com/anthropic-experimental/sandbox-runtime","OSS","Sandboxing","OS-level filesystem + network sandboxing for agent processes, no container needed. First-party Anthropic","4.6k ★ · Apache-2.0","active","ok",1],
+[1,"IBM/mcp-context-forge","https://github.com/IBM/mcp-context-forge","OSS","MCP gateway","Federating registry/proxy for MCP + A2A + REST/gRPC with governance and observability. Most complete enterprise OSS option","3.7k ★ · Apache-2.0","active","ok",0],
+[1,"agentgateway/agentgateway","https://github.com/agentgateway/agentgateway","OSS","MCP gateway","Envoy-lineage agentic proxy. Token exchange isolates per-tool permissions; tool-poisoning and rug-pull defense. Solo.io → Linux Foundation","3.4k ★ · Apache-2.0","active","ok",0],
+[1,"octelium/octelium","https://github.com/octelium/octelium","OSS","MCP gateway","Self-hosted zero-trust plane: ZTNA + API/AI/MCP gateway in one. Broadest scope in the OSS set","3.9k ★ · AGPL-3.0","active","ok",1],
+[1,"stacklok/toolhive","https://github.com/stacklok/toolhive","OSS","MCP gateway","Runs MCP servers in locked-down containers with an authz CRD. Best sandbox + policy combination","2.0k ★ · Apache-2.0","active","ok",1],
+[1,"envoyproxy/ai-gateway","https://github.com/envoyproxy/ai-gateway","OSS","MCP gateway","Envoy/CNCF unified auth and access layer for gen-AI services","1.8k ★ · Apache-2.0","active","ok",0],
+[1,"docker/mcp-gateway","https://github.com/docker/mcp-gateway","OSS","MCP gateway","Containerized MCP servers: 1 CPU/2GB caps, no host filesystem unless explicitly mounted, secrets requests blocked, image signing","1.4k ★ · MIT","active","ok",1],
+[1,"luckyPipewrench/pipelock","https://github.com/luckyPipewrench/pipelock","OSS","MCP gateway","Agent firewall inspecting MCP/HTTP/A2A/WebSocket traffic for exfiltration, SSRF and prompt injection. Signed audit receipts","577 ★ · Apache/Elastic","active","ok",1],
+[1,"agentic-community/mcp-gateway-registry","https://github.com/agentic-community/mcp-gateway-registry","OSS","MCP gateway","OAuth via Keycloak/Entra/Okta/Auth0 + dynamic discovery + audit. AWS-blogged","649 ★ · Apache-2.0","active","ok",0],
+[1,"microsoft/mcp-gateway","https://github.com/microsoft/mcp-gateway","OSS","MCP gateway","Reverse proxy for session-aware routing and lifecycle of MCP servers on Kubernetes","634 ★ · MIT","early, no releases","warn",0],
+[1,"mozilla-ai/mcpd","https://github.com/mozilla-ai/mcpd","OSS","MCP gateway","Daemon exposing declaratively-configured MCP servers as HTTP endpoints","167 ★ · Apache-2.0","active","ok",1],
+[1,"provnai/McpVanguard","https://github.com/provnai/McpVanguard","OSS","MCP gateway","Inspects and blocks risky MCP tool calls pre-execution, emits audit-ready evidence. Tiny but exactly on-thesis","12 ★ · MIT","active","ok",1],
+[1,"open-webui/mcpo","https://github.com/open-webui/mcpo","OSS","MCP gateway","Exposes any MCP server as an OpenAPI/REST endpoint. Passthrough, not policy","4.2k ★ · MIT","stale ~5mo","warn",1],
+[1,"lasso-security/mcp-gateway","https://github.com/lasso-security/mcp-gateway","OSS","MCP gateway","Plugin-based MCP orchestration with guardrails and monitoring","371 ★ · MIT","stale ~7mo","warn",0],
+[1,"centralmind/gateway","https://github.com/centralmind/gateway","OSS","MCP gateway","Auto-generates LLM-optimized REST/MCP APIs over structured databases with data-scoping","541 ★ · Apache-2.0","dormant ~13mo","dead",0],
+[1,"eqtylab/mcp-guardian","https://github.com/eqtylab/mcp-guardian","OSS","MCP gateway","Proxy with message logging and human-approval gates","199 ★ · Apache-2.0","abandoned ~16mo","dead",1],
+[1,"firecracker-microvm/firecracker","https://github.com/firecracker-microvm/firecracker","OSS","Sandboxing","AWS microVM virtualization — the substrate under most agent sandboxes","34.7k ★ · Apache-2.0","active","ok",0],
+[1,"apple/container","https://github.com/apple/container","OSS","Sandboxing","Runs Linux containers as lightweight VMs on Apple silicon","26.5k ★ · Apache-2.0","active","ok",1],
+[1,"google/gvisor","https://github.com/google/gvisor","OSS","Sandboxing","Userspace application kernel isolating containers from host OS. Powers GKE Agent Sandbox","18.5k ★ · Apache-2.0","active","ok",0],
+[1,"e2b-dev/e2b","https://github.com/e2b-dev/e2b","OSS","Sandboxing","Firecracker-based cloud sandboxes for AI-generated code with real tools","12.9k ★ · Apache-2.0","active","ok",1],
+[1,"superradcompany/microsandbox","https://github.com/superradcompany/microsandbox","OSS","Sandboxing","Local-first microVM runtime, ~200ms boot. Every agent gets its own machine","7.1k ★ · Apache-2.0","active","ok",1],
+[1,"dagger/container-use","https://github.com/dagger/container-use","OSS","Sandboxing","Isolated git-branch-based containerized workspaces for parallel coding agents","3.8k ★ · Apache-2.0","commits active, release ~1yr stale","warn",1],
+[1,"coder/boundary","https://github.com/coder/boundary","OSS","Sandboxing","Lightweight Linux process isolator restricting HTTP/HTTPS egress via namespaces + proxy","21 ★ · MIT","active","ok",1],
+[1,"schmitthub/clawker","https://github.com/schmitthub/clawker","OSS","Sandboxing","CLI orchestrating Claude Code in isolated Docker containers behind an egress firewall","16 ★ · MIT","active","ok",1],
+[2,"snyk/agent-scan","https://github.com/snyk/agent-scan","OSS","Scanning","Scans MCP servers, configs and agent skills for vulnerabilities and tool poisoning. Formerly invariantlabs-ai/mcp-scan","2.9k ★ · Apache-2.0","active · repo moved","ok",1],
+[2,"harishsg993010/damn-vulnerable-MCP-server","https://github.com/harishsg993010/damn-vulnerable-MCP-server","OSS","Scanning","Deliberately vulnerable MCP server, 10 challenges teaching attack vectors","1.3k ★ · MIT","moderate","ok",1],
+[2,"riseandignite/mcp-shield","https://github.com/riseandignite/mcp-shield","OSS","Scanning","Scans MCP servers for tool poisoning, exfiltration and cross-origin escalation","556 ★ · MIT","low activity","warn",1],
+[2,"Puliczek/awesome-mcp-security","https://github.com/Puliczek/awesome-mcp-security","OSS","Scanning","Curated index of MCP security research, tools and incidents","698 ★ · unlicensed","current to Mar 2026","warn",1],
+[2,"slowmist/MCP-Security-Checklist","https://github.com/slowmist/MCP-Security-Checklist","OSS","Scanning","Checklist covering MCP server, client and multi-MCP security risks","829 ★ · MIT","stale ~15mo","dead",1],
+[1,"casbin/casbin","https://github.com/casbin/casbin","OSS","Policy engine","Multi-language authz library (ACL/RBAC/ABAC). No MCP integration","20.3k ★ · Apache-2.0","active · no MCP glue","warn",0],
+[1,"open-policy-agent/opa","https://github.com/open-policy-agent/opa","OSS","Policy engine","General-purpose policy engine (Rego), CNCF graduated. No first-party agent integration","11.8k ★ · Apache-2.0","active · no MCP glue","warn",0],
+[1,"authzed/spicedb","https://github.com/authzed/spicedb","OSS","Policy engine","Zanzibar-style relationship-based authorization database. No MCP integration","6.8k ★ · Apache-2.0","active · no MCP glue","warn",0],
+[1,"Permify/permify","https://github.com/Permify/permify","OSS","Policy engine","Zanzibar-inspired centralized fine-grained authz service. No MCP integration","5.9k ★ · AGPL-3.0","active · no MCP glue","warn",0],
+[1,"openfga/openfga","https://github.com/openfga/openfga","OSS","Policy engine","Zanzibar-inspired fine-grained authz engine, CNCF (Auth0/Okta lineage). No MCP integration","5.2k ★ · Apache-2.0","active · no MCP glue","warn",0],
+[1,"cedar-policy/cedar","https://github.com/cedar-policy/cedar","OSS","Policy engine","Formally-verifiable policy language from AWS. Used inside AgentCore and Natoma, no standalone MCP repo","1.5k ★ · Apache-2.0","active · no MCP glue","warn",0],
+[1,"permitio/permit-fastmcp","https://github.com/permitio/permit-fastmcp","OSS","Policy engine","FastMCP middleware enforcing Permit.io policies on MCP requests. The only real engine↔MCP bridge that exists","17 ★ · Apache-2.0","stale ~11mo","dead",0],
+[1,"spiffe/spire","https://github.com/spiffe/spire","OSS","Agent identity","Issues cryptographic workload identities (X.509/JWT-SVIDs). Google's Agent Identity uses SPIFFE format","2.4k ★ · Apache-2.0","active","ok",0],
+[1,"keycloak/keycloak","https://github.com/keycloak/keycloak","OSS","Agent identity","Full IAM/OAuth2/OIDC platform. Used as the OAuth IdP by several MCP gateways","34.7k ★ · Apache-2.0","active","ok",0],
+[1,"hashicorp/vault","https://github.com/hashicorp/vault","OSS","Agent identity","Secrets management, dynamic credentials, audit logging. BUSL-1.1 — not OSI open source since 2023","35.7k ★ · BUSL-1.1","active · license caveat","warn",0],
+[1,"mcpauth/mcpauth","https://github.com/mcpauth/mcpauth","OSS","Agent identity","Self-hostable OAuth 2.0 server purpose-built for MCP servers","113 ★ · ISC","active","ok",1],
+[1,"mcp-auth/js","https://github.com/mcp-auth/js","OSS","Agent identity","Plug-and-play OAuth 2.1 SDK for Node.js MCP servers","51 ★ · MIT","stale ~7mo","warn",1],
+[1,"karanb192/claude-code-hooks","https://github.com/karanb192/claude-code-hooks","OSS","User-side","Installable marketplace of Claude Code hooks: safety, cost tracking, observability","455 ★ · MIT","active","ok",1],
+[2,"delexw/claude-code-trace","https://github.com/delexw/claude-code-trace","OSS","User-side","Renders Claude Code session logs as conversations with MCP-call detection and live tail","321 ★ · MIT","active","ok",1],
+[1,"textcortex/spritz","https://github.com/textcortex/spritz","OSS","User-side","Kubernetes-native control plane for coding agents. Successor to the archived claude-code-sandbox","95 ★ · MIT","stale ~3mo","warn",1],
+[1,"kornysietsma/claude-code-permissions-hook","https://github.com/kornysietsma/claude-code-permissions-hook","OSS","User-side","PreToolUse hook giving granular allow/deny/pattern-match control over tool calls","36 ★","low activity","warn",1],
+[1,"Tonyhzk/cc-permission-manager","https://github.com/Tonyhzk/cc-permission-manager","OSS","User-side","Cross-platform desktop GUI for managing Claude Code permission configs","30 ★ · MIT","active","ok",1],
+[1,"l-mb/claude-code-redaction-hooks","https://github.com/l-mb/claude-code-redaction-hooks","OSS","User-side","Hooks blocking or redacting secrets and PII before they reach the model or leave via tool output","18 ★ · Apache-2.0","active","ok",1],
+[2,"scadastrangelove/agent-audit","https://github.com/scadastrangelove/agent-audit","OSS","User-side","Forensic auditor for local agent session logs (Claude Code, Codex CLI). Scans risky skills, plugins, MCP manifests. 296 rules","15 ★ · MIT","active","ok",1],
+[0,"Claude Code permissions","https://code.claude.com/docs/en/permissions","Native","Anthropic","deny → ask → allow rules. Per-command glob, per-path, per-domain, per-MCP-tool. Admin-enforceable via managed settings","free","GA","ok",1],
+[0,"Claude Code sandboxing","https://code.claude.com/docs/en/sandboxing","Native","Anthropic","OS-level Seatbelt/bubblewrap filesystem + network isolation for Bash. Egress allowlist is hostname-only — Anthropic flags domain fronting as unresolved","free","GA · no native Windows","warn",1],
+[0,"Claude managed MCP","https://code.claude.com/docs/en/managed-mcp","Native","Anthropic","Admin control of MCP servers via managed-mcp.json or allow/deny lists. Anthropic states serverName matching is NOT a security control","Enterprise","GA","ok",0],
+[0,"Claude Compliance API","https://claude.com/blog/claude-platform-compliance-api","Native","Anthropic","Admin and resource event export, announced Mar 2026. Explicitly excludes all inference activity","Enterprise","GA · no content","warn",0],
+[0,"AWS Bedrock AgentCore Identity","https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity.html","Native","AWS","Inbound auth (SigV4/JWT) + outbound OAuth token vault, 2LO/3LO, per-scope. Workload identity abstraction","usage-based","GA Oct 2025 · OBO Apr 2026","ok",0],
+[0,"AWS IAM condition keys (AgentCore)","https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/security-vpc-condition.html","Native","AWS","VPC placement only — no condition key governs in-session tool or data access","free","GA · narrow","warn",0],
+[0,"Microsoft Entra Agent ID","https://learn.microsoft.com/en-us/entra/agent-id/what-is-microsoft-entra-agent-id","Native","Microsoft","Directory identity per agent, Conditional Access, Identity Protection, human sponsor that auto-transfers to their manager on departure. Federates to AWS Bedrock and n8n","Entra + Agent 365","GA Apr 2026","ok",0],
+[0,"Microsoft Purview DSPM for AI","https://learn.microsoft.com/en-us/purview/dspm-for-ai-considerations","Native","Microsoft","Monitors prompts/responses across Copilot and third-party AI sites. DLP block/warn, sensitivity labels","bundled","GA · audit-mode default","warn",0],
+[0,"SharePoint Restricted Content Discovery","https://learn.microsoft.com/en-us/sharepoint/restricted-content-discovery","Native","Microsoft","Site-level hide-from-Copilot. Explicitly does NOT change underlying permissions","bundled","GA · does not fix oversharing","warn",0],
+[0,"Google Workspace AI control center","https://workspaceupdates.googleblog.com/2026/05/securely-manage-AI-and-agent-access-to-Workspace-data-with-the-AI-control-center.html","Native","Google","The only place to gate Gemini's access to Drive and Gmail. Coarse binary toggle per OU/config group","Enterprise Std/Plus","GA 4 May 2026","ok",0],
+[0,"Gemini Enterprise Agent Identity","https://docs.cloud.google.com/iam/docs/agent-identity-overview","Native","Google","SPIFFE-format per-agent identities + Agent Gateway policy enforcement + Model Armor inspection","Gemini Enterprise","GA 25 Jun 2026 · broker still Preview","ok",0],
+[0,"GKE Agent Sandbox","https://docs.cloud.google.com/kubernetes-engine/docs/how-to/agent-sandbox","Native","Google","gVisor-based isolation blocking hostNetwork, hostPath and metadata-server egress","GKE","GA","ok",0],
+[0,"ChatGPT Enterprise connector controls","https://help.openai.com/en/articles/11509118-admin-controls-security-and-compliance-in-connectors-enterprise-edu-and-team","Native","OpenAI","Apps disabled by default. Per-app, per-action (all/read-only/custom) and field-level parameter constraints. All calls logged","Enterprise","GA","ok",0],
+[0,"OpenAI Codex sandboxing","https://developers.openai.com/codex/security","Native","OpenAI","Two-layer OS sandbox + approval policy. Network off by default, domain allowlist with DNS-rebind protection","free/bundled","GA","ok",1],
+[1,"Cloudflare MCP Server Portals","https://blog.cloudflare.com/zero-trust-mcp-server-portals/","Commercial","MCP gateway","Cloudflare One SASE, Access/OAuth-gated per server and per tool. Best free on-ramp in the commercial set","free ≤50 seats","open beta","warn",1],
+[1,"Teleport MCP Access","https://goteleport.com/use-cases/secure-model-context-protocol/","Commercial","MCP gateway","Identity proxy with short-lived per-request credentials, RBAC + ABAC, JIT elevation, full session recording","Nasdaq, Discord, Airtable","GA · Beams runtime beta","ok",0],
+[1,"Pomerium","https://www.pomerium.com/docs/capabilities/mcp","Commercial","MCP gateway","Reverse proxy with PPL policy language for tool allow/deny plus full request logging. Names Claude, ChatGPT, VS Code as clients","has OSS core","GA","ok",1],
+[1,"Kong AI Gateway","https://konghq.com/solutions/mcp-governance","Commercial","MCP gateway","API gateway plugin for MCP governance. One of the few vendors publishing prices","$100/mo per LLM model","GA","ok",0],
+[1,"Solo.io Enterprise agentgateway","https://www.solo.io/blog/introducing-solo-enterprise-for-agentgateway","Commercial","MCP gateway","Commercial distro of the Linux Foundation OSS project. Cryptographically verifiable audit trails","contact sales","GA","ok",0],
+[1,"MintMCP","https://www.mintmcp.com/","Commercial","MCP gateway","Reverse proxy, curated server catalog, per-agent identities, guardrails blocking risky actions","Coursera, Harvey AI","GA · SOC 2 Type II","ok",0],
+[1,"Lunar.dev MCPX","https://www.lunar.dev/product/mcp","Commercial","MCP gateway","Docker gateway with RBAC, immutable audit logs, DLP add-on. OSS core plus enterprise tier","contact sales","GA","ok",0],
+[1,"Obot AI","https://obot.ai/enterprise-mcp-governance/","Commercial","MCP gateway","Proxy/control plane with fine-grained per-user and per-team policy, egress control, full audit","OSS free + enterprise","GA","ok",1],
+[1,"Natoma","https://natoma.ai/platform","Commercial","MCP gateway","Cedar ABAC middleware with demonstrated hard denial of unauthorized tool calls","acq. Snowflake May 2026","GA","ok",0],
+[1,"Salt Security MCP Finder","https://salt.security/","Commercial","MCP gateway","Discovers shadow MCP servers, hands blocking to AWS WAF. Real enforcement but AWS-only","contact sales","GA · AWS-only","warn",0],
+[1,"Descope","https://www.descope.com/pricing","Commercial","Agent identity","OAuth 2.1 authorization server for MCP with token vaulting and 50+ prebuilt OAuth templates. Issues tokens — your server must enforce scopes","free ≤7.5k MAU","GA · not in-path","warn",1],
+[1,"Aembit","https://aembit.io/","Commercial","Agent identity","Secretless credential exchange, full OAuth 2.1 MCP authorization server, blended identity evaluating agent + human operator together","free / $20 per agent/mo","GA 9 Apr 2026","ok",1],
+[1,"Arcade.dev","https://www.arcade.dev/","Commercial","Agent identity","Action runtime with permission-intersection enforcement (agent ∩ delegated user). Token vault isolated from the LLM context window","$60M raised Jun 2026","GA · air-gapped option","ok",1],
+[1,"Auth0 for AI Agents","https://auth0.com/ai","Commercial","Agent identity","Token Vault across 35+ APIs, async authorization via CIBA for human-in-the-loop, FGA permission-filtering for RAG","free tier","GA Nov 2025","ok",1],
+[1,"Okta for AI Agents + Cross App Access","https://www.okta.com/solutions/secure-ai/","Commercial","Agent identity","IdP as OAuth token broker between apps and agents. XAA is an IETF draft co-authored with Ping","contact sales","GA 29 Apr 2026","ok",0],
+[2,"Palo Alto Idira","https://www.paloaltonetworks.com/idira/agentic","Commercial","Governance","Discovery → registry → JIT identity broker → Agent Kill Switch. Built on acquired CyberArk technology","contact sales","GA May 2026 · no named customers","warn",0],
+[2,"Saviynt Identity Security for AI","https://saviynt.com/","Commercial","Governance","Access Gateway does runtime authorization — inspects execution plan then allows/blocks/limits/escalates. Covers Bedrock, Copilot Studio, Vertex, ServiceNow, Agentforce","$700M @ ~$3B","design partners","warn",0],
+[2,"Obsidian Security","https://www.obsidiansecurity.com/ai-agent-security","Commercial","Governance","Evidence-based least-privilege from actual usage, not claimed need. Covers Bedrock, Claude, Vertex, Copilot, n8n, OpenAI, Agentforce","T-Mobile, Databricks, S&P","GA","ok",0],
+[2,"Silverfort AI Agent Security","https://www.silverfort.com/platform/ai-agent-security/","Commercial","Governance","Agentless discovery via IdP/cloud APIs incl. rogue agents. Storyline permission-chain graphs. Enforces via own MCP Gateway or native Copilot Studio hooks","acq. Fabrix 2026","GA","ok",0],
+[2,"Token Security","https://www.token.security/","Commercial","Governance","NHI and agent discovery across on-prem, hybrid and cloud. Shipped its own MCP server for NHI security","$20M Series A","GA","ok",0],
+[2,"Zenity","https://zenity.io/","Commercial","Runtime security","Observe/Govern/Defend. Gartner's Company to Beat in AI agent governance — but confirmed inline enforcement is M365 Copilot only","$55M+ raised","GA · enforcement narrow","warn",0],
+[1,"Prompt Security (SentinelOne)","https://www.sentinelone.com/blog/a-new-chapter-for-ai-and-cybersecurity-sentinelone-acquires-prompt-security/","Commercial","Runtime security","One of very few runtime-security vendors with a genuine MCP Gateway intercepting calls to 13,000+ known MCP servers, with real-time redaction and blocking","acq. SentinelOne 2025","GA","ok",0],
+[2,"Noma Security","https://noma.security/","Commercial","Runtime security","AI/agent discovery plus runtime guardrails across the model lifecycle","$132M total","GA","ok",0],
+[2,"WitnessAI","https://witness.ai/","Commercial","Runtime security","Control plane restricting agent and MCP server behaviour at runtime","$58M raised","GA","ok",0],
+[2,"BeyondTrust AI Agent Security","https://www.beyondtrust.com/products/ai-agent-security","Commercial","Governance","Vendor-agnostic policy across Claude Code, GitHub Copilot and Cursor. Blocks destructive commands, forces human approval even when native guardrails are off","contact sales","private beta · US GA Fall 2026","dead",0],
+[2,"ConductorOne AI Access Management","https://www.conductorone.com/","Commercial","Governance","Per-call authentication and permission checks, vaulted service credentials, 3,000+ hosted MCP servers","$79M Series B","early preview only","dead",0],
+[2,"Oak","https://techcrunch.com/2026/07/15/backed-by-60m-in-funding-oak-steps-out-of-stealth-to-fix-the-identity-mess-that-ai-agents-are-making-worse/","Commercial","Governance","AI-native identity OS mapping access to actual app usage with real-time removal of unused permissions","$60M seed","out of stealth Jul 2026 · unproven","dead",0],
+[2,"Wiz AI-SPM","https://www.wiz.io/","Commercial","Posture only","Agentless cloud API scanning, attack-path mapping. Tells you an agent is over-permissioned; does not block it","acq. Google $32B","GA · observe-only","warn",0],
+[2,"Sysdig AI agent runtime","https://www.sysdig.com/","Commercial","Posture only","eBPF/Falco runtime monitoring. Names Claude Code and Gemini coding agents explicitly — but detects, does not gate","launched Mar 2026","GA · observe-only","warn",0],
+[2,"Knostic","https://www.knostic.ai/","Commercial","Posture only","Answer-shaping and redaction over Copilot. Vendor states outright it is not about blocking access","$14.3M total","GA · not enforcement","warn",0],
+[2,"Britive","https://www.britive.com/platform/agentic-ai-identity-security","Commercial","Governance","Agent registry with DIDs/SPIFFE, ABAC/PBAC runtime authz, MCP Tool Broker. No funding round since Mar 2023 — likely a Cloud PAM reposition","$20.5M Series B 2023","GA · repositioning","warn",0]
+];
+
+const S={q:"",type:null,layer:null,user:null,ok:null};
+const tb=document.getElementById("rows"),ct=document.getElementById("count"),em=document.getElementById("empty");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function render(){
+  const rows=D.filter(r=>{
+    const [L,name,,type,cat,what]=r;
+    if(S.type&&type!==S.type)return false;
+    if(S.layer&&String(L)!==S.layer)return false;
+    if(S.user&&r[9]!==1)return false;
+    if(S.ok&&(r[8]==="dead"||r[8]==="warn"))return false;
+    if(S.q&&!(name+" "+cat+" "+what+" "+type).toLowerCase().includes(S.q))return false;
+    return true;
+  });
+  tb.innerHTML=rows.map(r=>{
+    const [L,name,url,type,cat,what,meta,st,sc]=r;
+    const tc=type==="OSS"?"t-oss":type==="Commercial"?"t-com":"t-nat";
+    return `<tr>
+      <td><span class="L">${L}</span></td>
+      <td><div class="name"><a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a></div>
+          <div class="meta">${esc(meta)}</div></td>
+      <td><span class="tag ${tc}">${esc(type)}</span></td>
+      <td class="hide-sm meta">${esc(cat)}</td>
+      <td class="what">${esc(what)}</td>
+      <td class="hide-sm"><span class="st s-${sc}">${esc(st)}</span></td>
+    </tr>`;
+  }).join("");
+  ct.textContent=`${rows.length} of ${D.length}`;
+  em.hidden=rows.length>0;
+}
+document.getElementById("q").addEventListener("input",e=>{S.q=e.target.value.toLowerCase().trim();render()});
+document.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{
+  const f=b.dataset.f,v=b.dataset.v,on=b.getAttribute("aria-pressed")==="true";
+  if(f==="type"||f==="layer")document.querySelectorAll(`.chip[data-f="${f}"]`).forEach(o=>o.setAttribute("aria-pressed","false"));
+  b.setAttribute("aria-pressed",on?"false":"true");
+  S[f]=on?null:v;render();
+}));
+render();
+</script>
+</body>
+</html>
