@@ -10,6 +10,7 @@ Scope: the AgentLens pipeline (collectors → normalizer → snapshot store → 
 | A2 — Secrets embedded in agent configs | MCP env tokens, hook credentials — flow *through* collectors even though they must not flow *into* snapshots |
 | A3 — Integrity of findings & drift | Users make security decisions from these; a falsified "all clear" is worse than no tool |
 | A4 — The user's trust in "read-only" | One accidental config write destroys the product's core promise |
+| A5 — Observed-event history (`data/observed/`) | Behavioral record of tool usage per session — at least as sensitive as A1; gitignored, bounded retention |
 
 ## 2. Attackers considered
 
@@ -34,6 +35,7 @@ Scope: the AgentLens pipeline (collectors → normalizer → snapshot store → 
 | T9 | Denial of service | Parser bomb: multi-GB JSON, deeply nested structures in a cloned repo | B1 | File-size cap before parse, parse in try/catch → `info` finding | Low |
 | T10 | Elevation | npm dependency compromise (M4) | build | 4 direct runtime/dev deps, committed lockfile, review on bump. Transitive deps (esbuild, sharp, fsevents) carry install scripts | Medium — industry-standard, not solved |
 | T11 | Tampering (A4) | A code path writes to an agent config (bug, not attack) | B1 | SR1 design (no write APIs imported in collector modules), mtime-invariance test in CI | Low |
+| T12 | Spoofing / Tampering / DoS | The loopback OTLP receiver (`/api/otel/v1/logs`) is AgentLens's first ingestion listener: any local process running as the user can POST forged events (fake "reject" decisions, flooding), or oversized/malformed payloads | B4 (revised) | POST+JSON only; body cap before parse; event-name and attribute allowlists; identity attributes never read; fixed error codes (no payload echo); dedup; bounded, gitignored storage with retention; UI states that localhost origin is not cryptographic authenticity | Medium — local forgery is inherent to unauthenticated loopback ingestion; acceptable for an observe-only local tool, revisit before any multi-machine mode |
 
 ## 4. OWASP Agentic Top 10 mapping
 

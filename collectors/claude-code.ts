@@ -60,7 +60,8 @@ function hooksFrom(sf: SettingsFile): Hook[] {
   const hooks = sf.data.hooks;
   if (typeof hooks !== "object" || hooks === null) return [];
   const out: Hook[] = [];
-  for (const [event, entries] of Object.entries(hooks as Record<string, unknown>)) {
+  for (const [rawEvent, entries] of Object.entries(hooks as Record<string, unknown>)) {
+    const event = redact(rawEvent);
     if (!Array.isArray(entries)) continue;
     for (const entry of entries) {
       if (typeof entry !== "object" || entry === null) continue;
@@ -105,7 +106,7 @@ function defaultModeFrom(files: SettingsFile[]): string | null {
   // First hit in precedence order wins — `files` arrives sorted by level rank.
   for (const sf of files) {
     const perms = (sf.data.permissions ?? {}) as Record<string, unknown>;
-    if (typeof perms.defaultMode === "string") return perms.defaultMode;
+    if (typeof perms.defaultMode === "string") return redact(perms.defaultMode);
   }
   return null;
 }

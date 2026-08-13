@@ -33,6 +33,7 @@ The dashboard renders the newest snapshot in `data/snapshots/`, falling back to 
 | Path | Contents |
 |---|---|
 | `docs/poc-guide.md` | **Start here** — current featureset and step-by-step local test walkthrough |
+| `docs/testing-live-tracking.md` | Testing guide for the `/live` observed-activity feature (synthetic + real-session paths) |
 | `docs/product-spec.md` | Personas, jobs, MVP features, non-goals, competitive positioning |
 | `docs/security-architecture.md` | Components, trust boundaries, security requirements SR1–SR5 |
 | `docs/threat-model.md` | STRIDE pass mapped to OWASP Agentic Top 10 (ASI03) |

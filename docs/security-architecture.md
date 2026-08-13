@@ -29,7 +29,7 @@ One-way pipeline: files → snapshot → UI. There is no arrow pointing back at 
 | B1 | Config files → Collectors | **Untrusted input.** Configs are written by users, checked-in project files (i.e., *other people via git*), installers, and potentially by a compromised or prompt-injected agent. Treat every string as adversarial data: parse defensively, redact, escape on render. |
 | B2 | Collectors/Normalizer → Snapshot store | Trusted code, untrusted-derived data. Snapshot dir is the only writable location. |
 | B3 | Snapshot store → Dashboard | Snapshots may have been edited on disk between collect and render (they're user-owned files). Hash verification (SR5) detects, not prevents. Content still rendered escaped. |
-| B4 | Dashboard server → Browser | Same-machine only. Localhost bind is the control; there is no authn/authz layer in v1, so the LAN-exposure failure mode is prevented, not mitigated (see T6). |
+| B4 | Dashboard server ↔ Browser / local processes | Same-machine only. Localhost bind is the control; there is no authn/authz layer in v1, so the LAN-exposure failure mode is prevented, not mitigated (see T6). **Revised 2026-08-13:** the server now also *ingests* — the loopback OTLP receiver (`/api/otel/v1/logs`) accepts user-directed Claude Code telemetry. Any local process running as the user can reach it; localhost origin is not authenticity (T12). |
 
 ## 3. Security requirements
 
@@ -46,6 +46,9 @@ Secret material must never reach the snapshot file, therefore never the DOM.
 - MCP `env` values dropped unconditionally (key names kept — they power heuristic H4). Pattern-based redaction over rule matchers, commands, args, URLs, and hook bodies (patterns in [collectors.md](collectors.md) §1.2, implemented in `lib/redact.ts`). **Known gaps** (verified 2026-08-13, fix scheduled as roadmap Step 2): persisted JSON parse-error messages can echo config content, and some scalar fields (`defaultMode`, hook event names) bypass redaction — see `local/mvp-review-accuracy-analysis.md` F3.
 - Bias to over-redaction: a mangled command display is acceptable; a leaked token is not. (Pattern precedent: `l-mb/claude-code-redaction-hooks` from the landscape research.)
 - **Test:** fixture configs seeded with fake secrets of every pattern class; assert none survive into the snapshot; CI grep of generated snapshots for `sk-`, `AKIA`, `ghp_`, `Bearer`.
+
+### SR3a — Loopback event ingestion (added 2026-08-13)
+The live-tracking feature adds one ingestion listener: `POST /api/otel/v1/logs` on the existing 127.0.0.1-bound server, receiving Claude Code OpenTelemetry events **only when the user explicitly launches Claude Code with an exporter pointed at it** (AgentLens never writes telemetry config — SR1). Controls: POST + `application/json` only; 2 MB body cap enforced before parsing; event-name and attribute allowlists (`lib/observed.ts`); identity attributes (user/org/installation ids, emails) never read; values redacted at ingest; fixed error codes with no payload echo (SR2); deterministic dedup; bounded gitignored storage (`data/observed/`, 7-day retention, per-segment size cap). Residual risk: local processes can forge events — T12. Design details: `local/live-tracking-final-plan.md`.
 
 ### SR3 — Local-only by default
 The dashboard aggregates a complete map of the machine's agent attack surface — permission gaps, MCP inventory, sandbox state. That artifact is exactly what an attacker doing recon wants. Therefore:

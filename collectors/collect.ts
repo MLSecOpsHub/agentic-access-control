@@ -9,7 +9,7 @@ import { collectClaudeCode } from "./claude-code";
 import { collectGenericMcp } from "./generic-mcp";
 import { collectCodexCli } from "./codex-cli";
 import { collectGeminiCli } from "./gemini-cli";
-import type { ParseIssue } from "./util";
+import { PARSE_ISSUE_TEXT, type ParseIssue } from "./util";
 
 // Snapshot orchestrator. SR1: this file owns the pipeline's ONLY write, and it
 // targets data/snapshots/ exclusively.
@@ -24,7 +24,8 @@ function issueFindings(issues: ParseIssue[]): RiskFinding[] {
     heuristicId: "PARSE" as const,
     severity: "info" as const,
     title: `Config not fully readable: ${path.basename(issue.file)}`,
-    evidence: issue.message,
+    // SR2: fixed code + canned text only — no exception content (F3 fix)
+    evidence: `${issue.code}: ${PARSE_ISSUE_TEXT[issue.code]}`,
     instanceId: null,
     sourceFile: issue.file,
   }));

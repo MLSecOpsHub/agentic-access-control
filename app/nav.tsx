@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Overview" },
   { href: "/mcp", label: "MCP servers" },
   { href: "/findings", label: "Findings" },
+  { href: "/live", label: "Live" },
 ];
 
 export function Nav() {

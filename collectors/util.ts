@@ -8,9 +8,21 @@ import { createHash } from "crypto";
 
 const MAX_CONFIG_BYTES = 5 * 1024 * 1024; // T9: parser-bomb cap
 
+// SR2: parse issues carry FIXED CODES only — never exception message text.
+// Node's JSON.parse errors echo fragments of the offending input, and V8's
+// truncation defeats pattern-based redaction (review finding F3, probe P1).
+export type ParseIssueCode = "ERR_SYMLINK" | "ERR_SIZE_CAP" | "ERR_JSON_SYNTAX" | "ERR_NOT_OBJECT";
+
+export const PARSE_ISSUE_TEXT: Record<ParseIssueCode, string> = {
+  ERR_SYMLINK: "symlinked config skipped (T4 path-traversal guard)",
+  ERR_SIZE_CAP: `config exceeds ${MAX_CONFIG_BYTES} byte cap, skipped (T9)`,
+  ERR_JSON_SYNTAX: "config is not parseable JSON",
+  ERR_NOT_OBJECT: "top-level JSON is not an object",
+};
+
 export interface ParseIssue {
   file: string;
-  message: string;
+  code: ParseIssueCode;
 }
 
 /** Read + JSON-parse a config file. Missing file → undefined; malformed → issue. */
@@ -25,24 +37,24 @@ export async function readJsonConfig(
     return undefined;
   }
   if (stat.isSymbolicLink()) {
-    issues.push({ file, message: "symlinked config skipped (T4 path-traversal guard)" });
+    issues.push({ file, code: "ERR_SYMLINK" });
     return undefined;
   }
   if (!stat.isFile()) return undefined;
   if (stat.size > MAX_CONFIG_BYTES) {
-    issues.push({ file, message: `config exceeds ${MAX_CONFIG_BYTES} byte cap, skipped (T9)` });
+    issues.push({ file, code: "ERR_SIZE_CAP" });
     return undefined;
   }
   try {
     const raw = await fs.readFile(file, "utf8");
     const parsed = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      issues.push({ file, message: "top-level JSON is not an object" });
+      issues.push({ file, code: "ERR_NOT_OBJECT" });
       return undefined;
     }
     return parsed as Record<string, unknown>;
-  } catch (err) {
-    issues.push({ file, message: `unparseable JSON: ${(err as Error).message}` });
+  } catch {
+    issues.push({ file, code: "ERR_JSON_SYNTAX" }); // exception text intentionally discarded
     return undefined;
   }
 }
