@@ -1,5 +1,7 @@
 import { loadRecentEvents } from "@/lib/observed-store";
+import { loadDashboardData } from "@/lib/snapshot";
 import type { ObservedEvent } from "@/lib/observed";
+import type { McpServer } from "@/lib/schema";
 import { timeAgo } from "@/lib/format";
 import { AutoRefresh } from "./auto-refresh";
 
@@ -60,13 +62,47 @@ function describe(e: ObservedEvent, resultFor: Map<string, ObservedEvent>): stri
       return `permission mode ${e.modeChange?.from ?? "?"} → ${e.modeChange?.to ?? "?"}${
         e.modeChange?.trigger ? ` (${e.modeChange.trigger})` : ""
       }`;
-    case "mcp_connection":
-      return `MCP server ${e.mcpConnection?.serverName ?? "?"}: ${e.mcpConnection?.status ?? "unknown"}`;
+    case "mcp_connection": {
+      const c = e.mcpConnection;
+      // server_name is only emitted with OTEL_LOG_TOOL_DETAILS=1 (vendor behavior)
+      const name = c?.serverName ?? "(name withheld — detailed mode off)";
+      const extra = [c?.transport, c?.scope ? `${c.scope} scope` : null, c?.errorCode ? `error ${c.errorCode}` : null]
+        .filter(Boolean)
+        .join(" · ");
+      return `MCP server ${name}: ${c?.status ?? "unknown"}${extra ? ` (${extra})` : ""}`;
+    }
   }
+}
+
+/**
+ * Correlate an unnamed MCP-connection event with the DECLARED server inventory
+ * from the latest snapshot. Interpretation only (SR4) — never rule/name
+ * attribution. "dynamic" scope means the server is not in any collected config
+ * file at all, which is itself a signal worth surfacing.
+ */
+function mcpCorrelation(e: ObservedEvent, declared: McpServer[] | null): string | null {
+  const c = e.mcpConnection;
+  if (e.kind !== "mcp_connection" || !c || c.serverName) return null;
+  if (c.scope === "dynamic") {
+    return "not declared in any collected config file — registered at runtime (plugin/host/session-added)";
+  }
+  if (!declared || !c.transport) return null;
+  const names = [...new Set(declared.filter((s) => s.transport === c.transport).map((s) => s.name))];
+  if (names.length === 0) return `no declared ${c.transport} server in the latest snapshot`;
+  return `declared ${c.transport} server${names.length > 1 ? "s" : ""} in latest snapshot (candidates, interpretation only): ${names.join(", ")}`;
 }
 
 export default async function LiveActivity() {
   const feed = await loadRecentEvents(150);
+  // Declared MCP inventory for correlation — real snapshots only, never the
+  // demo fixture (fixture names would masquerade as candidates).
+  let declaredServers: McpServer[] | null = null;
+  try {
+    const { current } = await loadDashboardData();
+    if (!current.isFixture) declaredServers = current.snapshot.mcpServers;
+  } catch {
+    declaredServers = null;
+  }
   const resultFor = new Map<string, ObservedEvent>();
   for (const e of feed.events) {
     if (e.kind === "result" && e.toolUseId) resultFor.set(e.toolUseId, e);
@@ -128,7 +164,12 @@ export default async function LiveActivity() {
                 <td>
                   <DecisionBadge e={e} />
                 </td>
-                <td>{describe(e, resultFor)}</td>
+                <td>
+                  {describe(e, resultFor)}
+                  {mcpCorrelation(e, declaredServers) && (
+                    <div className="meta">{mcpCorrelation(e, declaredServers)}</div>
+                  )}
+                </td>
                 <td className="hide-sm">
                   {e.decisionSource ? <code>{e.decisionSource}</code> : <span className="meta">—</span>}
                 </td>
@@ -145,6 +186,15 @@ export default async function LiveActivity() {
           </tbody>
         </table>
       </div>
+
+      {timeline.some((e) => e.kind === "mcp_connection" && !e.mcpConnection?.serverName) && (
+        <p className="meta" style={{ marginTop: 14 }}>
+          MCP server names are withheld by Claude Code under the default privacy mode. To identify
+          a specific failing server, relaunch once with <code>OTEL_LOG_TOOL_DETAILS=1</code> —
+          knowingly: that mode also exports tool arguments (see{" "}
+          <code>docs/testing-live-tracking.md</code>).
+        </p>
+      )}
 
       <p className="meta" style={{ marginTop: 14 }}>
         Events are stored locally in <code>data/observed/</code> (gitignored, 7-day retention,

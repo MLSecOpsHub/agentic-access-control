@@ -78,7 +78,7 @@ Then exercise each evidence class and watch `/live` (rows should appear within ~
 | Ask for another command, **reject** it | reject · source `user_reject` · "not executed (rejected)" |
 | Repeat an already-allowed command | accept · source `config` — Claude's evaluator decided without prompting |
 | Press **Shift+Tab** to change permission mode | `mode change` · e.g. `default → acceptEdits` |
-| Start in a project with MCP servers configured | `MCP server <name>: connected` rows at startup |
+| Start in a project with MCP servers configured | `mcp connection` rows at startup showing status, transport and scope — e.g. `MCP server (name withheld — detailed mode off): connected (stdio · project scope)`. Server **names** appear only with `OTEL_LOG_TOOL_DETAILS=1` (vendor withholds them in the privacy-first default) |
 | Run two sessions in parallel | distinct short session ids; rows never mix sessions |
 
 ## Privacy verification (run after either path)
@@ -120,3 +120,5 @@ The full acceptance matrix (concurrent-session ordering, exporter failure, hook-
 | `curl` gets connection refused | Dashboard not running, or a stale server owns the port — check `ss -tlnp \| grep 3000`, kill stale `next-server` processes, `rm -rf .next`, restart |
 | Rows appear but "no execution result observed" | Normal for very recent accepts (result event lags), or the tool is still running |
 | `"ignored"` count high, nothing stored | Exporter is sending non-permission events only — verify `OTEL_LOGS_EXPORTER=otlp` and the logs endpoint path `/api/otel/v1/logs` |
+| MCP rows say "(name withheld — detailed mode off)" | Expected under the default snippet: Claude Code emits `server_name` only when `OTEL_LOG_TOOL_DETAILS=1`. Transport, scope and error code still display. Enable detailed mode only knowingly — it also exports tool arguments |
+| MCP row shows `failed` | That's a real connection failure of one of your configured MCP servers (the `error <code>` suffix says why) — an AgentLens *finding*, not an AgentLens bug |

@@ -6,7 +6,7 @@ import { redact } from "./redact";
 // taxonomy (local/live-tracking-final-plan.md). Versioned independently of
 // Claude Code releases; raw OTLP envelopes are never retained.
 
-export const OBSERVED_SCHEMA_VERSION = "0.1.0";
+export const OBSERVED_SCHEMA_VERSION = "0.2.0";
 
 export const ObservedEventSchema = z.object({
   schemaVersion: z.string(),
@@ -40,8 +40,14 @@ export const ObservedEventSchema = z.object({
     .nullable(),
   mcpConnection: z
     .object({
-      serverName: z.string().nullable(),
-      status: z.string().nullable(),
+      // Vendor emits server_name ONLY when OTEL_LOG_TOOL_DETAILS=1; under the
+      // privacy-first default it is intentionally absent — render as withheld,
+      // not unknown. Defaults keep pre-0.2.0 stored events parseable.
+      serverName: z.string().nullable().default(null),
+      status: z.string().nullable().default(null),
+      transport: z.string().nullable().default(null),
+      scope: z.string().nullable().default(null),
+      errorCode: z.string().nullable().default(null),
     })
     .nullable(),
   confidence: z.enum(["vendor-event", "inferred-transcript"]),
@@ -203,8 +209,11 @@ export function normalizeOtlpLogs(envelope: unknown, receivedAt: string): Normal
           mcpConnection:
             kind === "mcp_connection"
               ? {
-                  serverName: str(attrs, "server_name", "name"),
-                  status: str(attrs, "status", "state"),
+                  serverName: str(attrs, "server_name"), // detailed mode only
+                  status: str(attrs, "status"),
+                  transport: str(attrs, "transport_type"),
+                  scope: str(attrs, "server_scope"),
+                  errorCode: str(attrs, "error_code"),
                 }
               : null,
           confidence: "vendor-event",
