@@ -92,4 +92,4 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 
 ## Drift (derived, not stored)
 
-Drift is computed by the dashboard from the two newest snapshots — never persisted, so it can't be tampered with independently of the hashed snapshots. Diff key for rules: `(instanceId, effect, matcher, sourceLevel)`; for MCP servers: `(instanceId, name)`. Output classes: `added`, `removed`. Hash mismatch with identical content ⇒ integrity warning.
+Drift is computed by the dashboard from the two newest snapshots — never persisted, so it can't be tampered with independently of the hashed snapshots, and only when **both** snapshots pass raw-hash verification (SR5); otherwise the UI reports "drift unavailable" with the reason. Diff key for rules: `(instanceId, effect, matcher, sourceLevel)`; for MCP servers: `(instanceId, name)`. Output classes: `added`, `removed`, and — for a same-named MCP server whose security-relevant fields (transport, commandOrUrl, args, envKeys, declaredTools, sourceFile) differ — a field-level `changed` entry. Hash mismatch with identical content ⇒ integrity warning.

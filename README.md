@@ -24,6 +24,7 @@ It targets the whitespace the research identifies: individual/prosumer tooling (
 npm install
 npm run dev        # dashboard on http://127.0.0.1:3000 with bundled fixture data
 npm run collect    # scan this machine read-only → data/snapshots/<timestamp>.json
+npm test           # executable SR1–SR5 verification (see security posture below)
 ```
 
 The dashboard renders the newest snapshot in `data/snapshots/`, falling back to `data/fixtures/sample-snapshot.json` so it works out of the box.
@@ -46,4 +47,4 @@ The dashboard renders the newest snapshot in `data/snapshots/`, falling back to 
 
 ## Security posture in one paragraph
 
-Collectors open files read-only from an allowlist of known config locations (SR1) and redact secret-shaped values before anything touches disk (SR2). The dashboard binds to 127.0.0.1 and makes zero outbound requests (SR3) — a map of your machine's agent attack surface is itself sensitive. Every permission view carries the caveat that it shows *configured declarations*, not proof of enforcement (SR4). Snapshots are content-hashed for tamper evidence (SR5). Details and current known gaps: [docs/security-architecture.md](docs/security-architecture.md); hardening plan: `local/hardening-roadmap.md`.
+Collectors open files read-only from an allowlist of known config locations (SR1) and redact secret-shaped values before anything touches disk (SR2). The dashboard binds to 127.0.0.1 and makes zero outbound requests (SR3) — a map of your machine's agent attack surface is itself sensitive. Every permission view carries the caveat that it shows *configured declarations*, not proof of enforcement (SR4). Snapshots are content-hashed for tamper evidence, verified on the raw bytes before validation, and drift only renders between two verified snapshots (SR5). Each requirement is backed by an executable test in `tests/` (`npm test`, enforced in CI). Details: [docs/security-architecture.md](docs/security-architecture.md); hardening plan: `local/hardening-roadmap.md`.

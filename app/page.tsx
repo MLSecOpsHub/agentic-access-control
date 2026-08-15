@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Overview" };
 
 export default async function Overview() {
-  const { current, drift } = await loadDashboardData();
+  const { current, drift, driftUnavailable } = await loadDashboardData();
   const s = current.snapshot;
 
   const ruleCount = (effect: "allow" | "ask" | "deny") =>
@@ -61,16 +61,31 @@ export default async function Overview() {
         </Link>
       </div>
 
+      {driftUnavailable && (
+        <>
+          <h2>Drift</h2>
+          <div className="notice notice-warn">
+            <b>Drift unavailable: </b>
+            {driftUnavailable === "unverified-current" &&
+              "the current snapshot failed integrity verification (SR5), so a diff against it would be unverifiable."}
+            {driftUnavailable === "unverified-previous" &&
+              "the previous snapshot failed integrity verification (SR5), so a diff against it would be unverifiable."}
+            {driftUnavailable === "unreadable-previous" &&
+              "the previous snapshot could not be parsed."}
+          </div>
+        </>
+      )}
       {drift && (
         <>
           <h2>Drift since previous snapshot ({timeAgo(drift.previousAt)})</h2>
-          {drift.addedRules.length + drift.removedRules.length + drift.addedServers.length + drift.removedServers.length === 0 ? (
+          {drift.addedRules.length + drift.removedRules.length + drift.addedServers.length + drift.removedServers.length + drift.changedServers.length === 0 ? (
             <p className="meta">No permission or MCP changes.</p>
           ) : (
             <div className="notice notice-warn">
               <b>
                 {drift.addedRules.length} rules added, {drift.removedRules.length} removed ·{" "}
-                {drift.addedServers.length} MCP servers added, {drift.removedServers.length} removed.
+                {drift.addedServers.length} MCP servers added, {drift.removedServers.length} removed,{" "}
+                {drift.changedServers.length} changed.
               </b>
               <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
                 {drift.addedRules.slice(0, 8).map((r, i) => (
@@ -93,6 +108,17 @@ export default async function Overview() {
                 {drift.removedServers.map((m, i) => (
                   <li key={`rs${i}`}>
                     removed MCP server <code>{m.name}</code>
+                  </li>
+                ))}
+                {drift.changedServers.map((c, i) => (
+                  <li key={`cs${i}`}>
+                    <b>changed</b> MCP server <code>{c.name}</code>: {c.changedFields.join(", ")}
+                    {c.changedFields.includes("commandOrUrl") && (
+                      <>
+                        {" "}
+                        (<code>{c.before.commandOrUrl}</code> → <code>{c.after.commandOrUrl}</code>)
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

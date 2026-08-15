@@ -6,11 +6,14 @@ import { ObservedEventSchema, type ObservedEvent } from "./observed";
 // data/observed/ is gitignored — behavioral history is at least as sensitive
 // as a configuration snapshot (decision doc §security).
 
-const OBS_DIR = path.join(process.cwd(), "data", "observed");
+// Resolved per call so the test suite can isolate storage (AGENTLENS_DATA_DIR
+// is a test seam, not a user-facing setting; default remains ./data).
+const obsDir = () =>
+  path.join(process.env.AGENTLENS_DATA_DIR ?? path.join(process.cwd(), "data"), "observed");
 const MAX_SEGMENT_BYTES = 10 * 1024 * 1024; // per-day cap; excess events are counted, not stored
 const RETAIN_SEGMENTS = 7;
 
-const segmentFile = (d = new Date()) => path.join(OBS_DIR, `events-${d.toISOString().slice(0, 10)}.ndjson`);
+const segmentFile = (d = new Date()) => path.join(obsDir(), `events-${d.toISOString().slice(0, 10)}.ndjson`);
 
 // In-memory dedup, seeded from the current segment on first use. Survives
 // route hot-reloads via globalThis; cross-day duplicates are acceptable residue.
@@ -40,9 +43,9 @@ async function seedDedup(file: string): Promise<void> {
 
 async function pruneOldSegments(): Promise<void> {
   try {
-    const files = (await fs.readdir(OBS_DIR)).filter((f) => f.startsWith("events-") && f.endsWith(".ndjson")).sort();
+    const files = (await fs.readdir(obsDir())).filter((f) => f.startsWith("events-") && f.endsWith(".ndjson")).sort();
     for (const f of files.slice(0, Math.max(0, files.length - RETAIN_SEGMENTS))) {
-      await fs.unlink(path.join(OBS_DIR, f));
+      await fs.unlink(path.join(obsDir(), f));
     }
   } catch {
     // best-effort retention
@@ -58,7 +61,7 @@ export interface AppendResult {
 export async function appendEvents(events: ObservedEvent[]): Promise<AppendResult> {
   const res: AppendResult = { appended: 0, duplicates: 0, droppedAtCap: 0 };
   if (events.length === 0) return res;
-  await fs.mkdir(OBS_DIR, { recursive: true });
+  await fs.mkdir(obsDir(), { recursive: true });
   const file = segmentFile();
   await seedDedup(file);
   await pruneOldSegments();
@@ -102,14 +105,14 @@ export async function loadRecentEvents(limit = 200): Promise<ObservedFeed> {
   const feed: ObservedFeed = { events: [], invalidLines: 0, droppedAtCap: state.dropped, lastEventAt: null };
   let files: string[] = [];
   try {
-    files = (await fs.readdir(OBS_DIR)).filter((f) => f.startsWith("events-") && f.endsWith(".ndjson")).sort().reverse().slice(0, 2);
+    files = (await fs.readdir(obsDir())).filter((f) => f.startsWith("events-") && f.endsWith(".ndjson")).sort().reverse().slice(0, 2);
   } catch {
     return feed;
   }
   for (const f of files) {
     let raw = "";
     try {
-      raw = await fs.readFile(path.join(OBS_DIR, f), "utf8");
+      raw = await fs.readFile(path.join(obsDir(), f), "utf8");
     } catch {
       continue;
     }

@@ -104,7 +104,7 @@ With `OTEL_LOG_TOOL_DETAILS=0` (the default snippet), rows show tool *names* but
 - [ ] Receiver state (last-event age) and `vendor-event` confidence visible
 - [ ] No row ever names a specific permission rule as the authorizer
 
-The full acceptance matrix (concurrent-session ordering, exporter failure, hook-decided calls) lands as automated tests with hardening roadmap Step 4 / live-tracking phase L8.
+The full acceptance matrix (concurrent-session ordering, malformed payloads, identity hygiene, dedup, per-path evidence classes) is automated in [`tests/otlp-receiver.test.ts`](../tests/otlp-receiver.test.ts) (hardening Step 4 / live-tracking L8, 2026-08-15) and runs with `npm test`.
 
 ## Reset & caveats
 
