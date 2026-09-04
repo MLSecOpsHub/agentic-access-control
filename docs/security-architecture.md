@@ -77,7 +77,7 @@ Rendered permission views show *configured declarations* with provenance — not
 | Attack | Mitigation |
 |---|---|
 | Stored XSS via adversarial config strings (a matcher named `<img onerror=…>`) | React default escaping only — no `dangerouslySetInnerHTML` anywhere in the codebase, lint-enforced (`react/no-danger` in `eslint.config.mjs`) and render-tested ([`tests/xss-escaping.test.ts`](../tests/xss-escaping.test.ts)); no markdown rendering of config content |
-| Path traversal via crafted project structure (symlink from a scanned repo → `/etc`, `~/.ssh`) | Allowlisted globs, symlink entries skipped during traversal, depth cap. A resolved-path prefix check is specified but not yet implemented (roadmap Step 5) |
+| Path traversal via crafted project structure (symlink from a scanned repo → `/etc`, `~/.ssh`) | Allowlisted globs, symlink entries skipped during traversal, depth cap, and a resolved-path prefix check confining the walk to the scanned root (`collectors/util.ts`, Step 5). The claude-code collector's git-root walk-up reads only the fixed `.claude/` settings names at ancestor directories — an existence check per level, never a tree walk |
 | Snapshot poisoning (edit snapshot to hide a finding before a review) | SR5 hash check; findings recomputable from raw rules client-side in a later version |
 | Exfiltration of the aggregated map | SR3: no egress, localhost bind, snapshots gitignored |
 | Dependency supply chain | Minimal direct dependency set (next, react, zod, tsx); lockfile committed. Note: transitive dependencies (esbuild, sharp, fsevents) do carry install scripts — review on every bump |

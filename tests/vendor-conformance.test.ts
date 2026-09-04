@@ -6,10 +6,9 @@ import { collectClaudeCode } from "@/collectors/claude-code";
 
 // Vendor-conformance fixtures (hardening Step 4): first-party Claude Code
 // semantics encoded as executable expectations, so precedence regressions fail
-// tests instead of external reviews. Two cases are marked `it.fails` — they
-// encode DOCUMENTED vendor behavior the collector does not implement yet
-// (hardening Step 5). When Step 5 lands, vitest flags them as "expected to
-// fail but passed": remove the `.fails` marker to lock the behavior in.
+// tests instead of external reviews. The two cases originally marked `it.fails`
+// (git-root settings.local.json discovery; deny-outranks-allow across levels)
+// flipped green when hardening Step 5 landed and are now locked in.
 // References: Claude Code settings docs — precedence: enterprise managed >
 // command line > local project > shared project > user; permission evaluation:
 // deny always wins over ask/allow regardless of source level.
@@ -80,9 +79,7 @@ describe("settings file discovery", () => {
 
   // Vendor semantics: project settings live at the GIT ROOT — running from a
   // nested package directory still applies <gitRoot>/.claude/settings.local.json.
-  // Collector gap tracked as hardening Step 5 ("settings.local.json git-root
-  // loading"). Remove `.fails` when Step 5 lands.
-  it.fails("settings.local.json is found at the git root when scanning a nested directory", async () => {
+  it("settings.local.json is found at the git root when scanning a nested directory", async () => {
     await fixtureHome({});
     const repo = await mkroot();
     await fs.mkdir(path.join(repo, ".git"), { recursive: true });
@@ -100,10 +97,8 @@ describe("settings file discovery", () => {
 
 describe("permission evaluation order", () => {
   // Vendor semantics: deny always wins — a user-level deny beats a
-  // project-level allow for the same matcher. The collector's precedenceRank
-  // is level-first, which orders the allow ahead of the deny. Step 5
-  // reimplements rule merging per documented semantics; remove `.fails` then.
-  it.fails("a deny outranks an allow for the same matcher regardless of level", async () => {
+  // project-level allow for the same matcher (effect-first precedenceRank).
+  it("a deny outranks an allow for the same matcher regardless of level", async () => {
     await fixtureHome({ permissions: { deny: ["WebFetch"] } });
     const project = await mkroot();
     await write(path.join(project, ".claude", "settings.json"), {
@@ -115,6 +110,109 @@ describe("permission evaluation order", () => {
       .sort((a, b) => a.precedenceRank - b.precedenceRank);
     expect(rules.length).toBe(2);
     expect(rules[0].effect).toBe("deny");
+  });
+});
+
+describe("project root deduplication", () => {
+  it("scanning the git root and a nested directory yields one project instance", async () => {
+    await fixtureHome({});
+    const repo = await mkroot();
+    await fs.mkdir(path.join(repo, ".git"), { recursive: true });
+    await write(path.join(repo, ".claude", "settings.json"), {
+      permissions: { allow: ["Bash(npm test)"] },
+    });
+    const nested = path.join(repo, "packages", "app");
+    await fs.mkdir(nested, { recursive: true });
+
+    const { instances } = await collectClaudeCode([repo, nested]);
+    expect(instances.filter((i) => i.scope === "project").length).toBe(1);
+  });
+});
+
+describe("per-field single-value merging across tiers", () => {
+  it("defaultMode carries the source file that contributed it", async () => {
+    await fixtureHome({ permissions: { defaultMode: "acceptEdits" } });
+    const project = await mkroot();
+    const localFile = path.join(project, ".claude", "settings.local.json");
+    await write(localFile, { permissions: { defaultMode: "plan" } });
+    const { instances } = await collectClaudeCode([project]);
+    const proj = instances.find((i) => i.scope === "project");
+    expect(proj?.defaultMode).toBe("plan");
+    expect(proj?.defaultModeSourceFile).toBe(localFile);
+  });
+
+  it("sandbox fields merge per-field: each field from the highest tier defining it", async () => {
+    const home = await fixtureHome({ sandbox: { allowUnsandboxedCommands: true } });
+    const project = await mkroot();
+    const projFile = path.join(project, ".claude", "settings.json");
+    await write(projFile, { sandbox: { enabled: false } });
+
+    const { instances } = await collectClaudeCode([project]);
+    const sb = instances.find((i) => i.scope === "project")?.sandbox;
+    expect(sb?.enabled).toBe(false); // from project tier
+    expect(sb?.allowUnsandboxedCommands).toBe(true); // from user tier
+    expect(sb?.fieldSources.enabled).toBe(projFile);
+    expect(sb?.fieldSources.allowUnsandboxedCommands).toBe(
+      path.join(home, ".claude", "settings.json"),
+    );
+  });
+});
+
+describe("per-project ~/.claude.json entries", () => {
+  it("project-scoped MCP servers in ~/.claude.json attach to the project instance", async () => {
+    const home = await fixtureHome({});
+    const project = await mkroot();
+    await write(path.join(project, ".claude", "settings.json"), {});
+    await write(path.join(home, ".claude.json"), {
+      projects: {
+        [project]: { mcpServers: { perProj: { command: "node", args: ["srv.js"] } } },
+      },
+    });
+
+    const { instances, mcpServers } = await collectClaudeCode([project]);
+    const inst = instances.find((i) => i.scope === "project");
+    const srv = mcpServers.find((s) => s.name === "perProj");
+    expect(srv?.instanceId).toBe(inst?.id);
+    expect(srv?.sourceFile).toBe(path.join(home, ".claude.json"));
+    expect(inst?.configFiles).toContain(path.join(home, ".claude.json"));
+  });
+
+  it("a ~/.claude.json project entry alone is enough to surface a project instance", async () => {
+    const home = await fixtureHome({});
+    const project = await mkroot(); // no .claude/, no .mcp.json
+    await write(path.join(home, ".claude.json"), {
+      projects: { [project]: { mcpServers: { only: { command: "node" } } } },
+    });
+    const { instances } = await collectClaudeCode([project]);
+    expect(instances.some((i) => i.scope === "project")).toBe(true);
+  });
+
+  it("enabled/disabled lists set enablement on .mcp.json servers; disabled wins", async () => {
+    const home = await fixtureHome({});
+    const project = await mkroot();
+    await write(path.join(project, ".mcp.json"), {
+      mcpServers: {
+        approved: { command: "node" },
+        rejected: { command: "node" },
+        undecided: { command: "node" },
+        contested: { command: "node" },
+      },
+    });
+    await write(path.join(home, ".claude.json"), {
+      projects: {
+        [project]: {
+          enabledMcpjsonServers: ["approved", "contested"],
+          disabledMcpjsonServers: ["rejected", "contested"],
+        },
+      },
+    });
+
+    const { mcpServers } = await collectClaudeCode([project]);
+    const byName = new Map(mcpServers.map((s) => [s.name, s.enablement]));
+    expect(byName.get("approved")).toBe("enabled");
+    expect(byName.get("rejected")).toBe("disabled");
+    expect(byName.get("undecided")).toBe(null);
+    expect(byName.get("contested")).toBe("disabled"); // conservative on conflict
   });
 });
 

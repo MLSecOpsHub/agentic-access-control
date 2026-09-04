@@ -10,6 +10,10 @@ const RISKY_BARE_TOOLS = new Set(["Bash", "Write", "Edit", "MultiEdit", "Noteboo
 const SECRET_KEY = /(TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL)/i;
 const BYPASS_MODE = /(bypass|yolo|danger|full-access)/i;
 const PIPE_TO_SHELL = /(curl|wget)[^|;]*\|\s*(ba|z)?sh\b/;
+// A package token carrying an explicit version: name@1.2.3, @scope/name@^1.2,
+// or pip-style name==1.2. False negatives fall through to the unpinned (high)
+// variant — over-warning is the acceptable direction here.
+const PINNED_PACKAGE = /\S@[~^=]?\d|\S==\d/;
 
 interface Ctx {
   instances: AgentInstance[];
@@ -39,10 +43,11 @@ export function runHeuristics(ctx: Ctx): RiskFinding[] {
   };
 
   for (const inst of ctx.instances) {
-    // H1 — bypass modes: all gating off.
+    // H1 — bypass modes: all gating off. Attributed to the file that actually
+    // contributed the winning mode (Step 5), not configFiles[0].
     if (inst.defaultMode && BYPASS_MODE.test(inst.defaultMode)) {
       add("H1", "critical", `Permission gating bypassed (mode "${inst.defaultMode}")`,
-        `defaultMode: ${inst.defaultMode}`, inst.id, inst.configFiles[0] ?? null);
+        `defaultMode: ${inst.defaultMode}`, inst.id, inst.defaultModeSourceFile);
     }
 
     for (const rule of inst.permissionRules) {
@@ -60,13 +65,16 @@ export function runHeuristics(ctx: Ctx): RiskFinding[] {
       }
     }
 
-    // H6 — sandbox off or escapable where the platform offers one.
+    // H6 — sandbox off or escapable where the platform offers one. Attributed
+    // via per-field provenance from the collector's tier merge (Step 5).
     if (inst.sandbox) {
       if (inst.sandbox.enabled === false) {
-        add("H6", "medium", "Sandbox disabled", "sandbox.enabled: false", inst.id, inst.configFiles[0] ?? null);
+        add("H6", "medium", "Sandbox disabled", "sandbox.enabled: false", inst.id,
+          inst.sandbox.fieldSources.enabled ?? null);
       } else if (inst.sandbox.allowUnsandboxedCommands === true) {
         add("H6", "medium", "Unsandboxed commands allowed",
-          "sandbox.allowUnsandboxedCommands: true", inst.id, inst.configFiles[0] ?? null);
+          "sandbox.allowUnsandboxedCommands: true", inst.id,
+          inst.sandbox.fieldSources.allowUnsandboxedCommands ?? null);
       }
     }
 
@@ -80,12 +88,21 @@ export function runHeuristics(ctx: Ctx): RiskFinding[] {
   }
 
   for (const srv of ctx.mcpServers) {
-    // H3 — unpinned launcher: executes latest upstream on every start.
+    // H3 — remote package runner. Unpinned executes latest upstream on every
+    // start (high). A pinned version still fetches from the registry at
+    // startup, so it stays a lower-severity variant (Step 5 fix: pinned specs
+    // were previously flagged with the unpinned claim text — false).
     if (srv.transport === "stdio") {
       const cmd = [srv.commandOrUrl, ...srv.args].join(" ");
       if (/\bnpx\b[^\n]*\s-y\b/.test(cmd) || /\b(uvx|pipx run)\b/.test(cmd)) {
-        add("H3", "high", `MCP server "${srv.name}" launched via unpinned package runner`,
-          cmd, srv.instanceId, srv.sourceFile);
+        if (PINNED_PACKAGE.test(cmd)) {
+          add("H3", "medium", `MCP server "${srv.name}" launched via remote package runner (version pinned)`,
+            `${cmd} — fetched from the package registry at startup; version pinned`,
+            srv.instanceId, srv.sourceFile);
+        } else {
+          add("H3", "high", `MCP server "${srv.name}" launched via unpinned package runner`,
+            `${cmd} — executes latest upstream on every start`, srv.instanceId, srv.sourceFile);
+        }
       }
     }
     // H4 — secret-suggestive env key names (values already dropped by SR2).

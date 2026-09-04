@@ -7,7 +7,7 @@ A concise tour of what the proof-of-concept does today and how to exercise every
 | Feature | What it does | Where |
 |---|---|---|
 | Agent instance inventory | Discovers agent installs as (platform × scope) instances — Claude Code fully, generic `mcp.json` manifests; Codex/Gemini CLI are spec'd stubs | Overview |
-| Configured permissions | Merged allow/ask/deny declarations per instance, grouped by effect, each with source file + settings level (managed/user/project/local) — explicitly not an evaluation-order claim | `/agents/<id>` |
+| Configured permissions | Merged allow/ask/deny declarations per instance, ordered by the documented evaluation semantics (deny → ask → allow across all tiers), each with source file + settings level (managed/user/project/local) | `/agents/<id>` |
 | MCP server inventory | Every configured server: transport, command/URL, env **key names** (values redacted at collection), declaring file | `/mcp` |
 | Sandbox & hook posture | Sandbox flags (warning-styled when disabled/escapable) and redacted hook command previews | `/agents/<id>` |
 | Risk findings | Heuristics: bypass modes, wildcard allows, `npx -y`/`uvx`-launched servers, credential env keys, disabled sandboxes, pipe-to-shell hooks | `/findings` |
@@ -37,7 +37,7 @@ Open **http://127.0.0.1:3000**. With no snapshots collected yet, the dashboard r
 ### 2. Tour the fixture
 
 1. **Overview** — the `claude-code · project` instance shows a red `bypassPermissions` mode badge and 7 findings.
-2. Click it → **instance detail**: 4 configured permission declarations grouped by effect with per-rule source file, an amber (disabled) sandbox card, one hook whose command pipes `curl` to `sh`, and 2 MCP servers.
+2. Click it → **instance detail**: 4 configured permission declarations in evaluation order (denies first) with per-rule source file, an amber (disabled) sandbox card, one hook whose command pipes `curl` to `sh`, and 2 MCP servers.
 3. **MCP servers** — note `github` runs via `npx -y` and lists `GITHUB_PERSONAL_ACCESS_TOKEN` as an env *key* (its value never reached the snapshot).
 4. **Findings** — 8 findings from `critical` (H1 bypass mode) down to `low` (H7 hook), each with post-redaction evidence and provenance.
 

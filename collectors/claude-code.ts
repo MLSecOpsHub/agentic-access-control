@@ -14,10 +14,15 @@ import { redact, truncate } from "../lib/redact";
 import { asStringArray, hash8, readJsonConfig, type ParseIssue } from "./util";
 
 // Claude Code collector — spec: docs/collectors.md §2.
-// Precedence interpretation (SR4 — ours, not ground truth):
-//   level: managed > local > project > user; within a level: deny > ask > allow.
+// Precedence engine (hardening Step 5) per first-party docs, verified 2026-08-13:
+//   - Permission RULES merge across all settings files and evaluate globally
+//     as deny → ask → allow; tier never overrides effect. A deny in any tier
+//     outranks an allow in any other tier.
+//   - Tier precedence applies to SINGLE-VALUE settings (defaultMode, sandbox
+//     fields): managed > command line > local project > shared project > user.
 
-const LEVEL_RANK: Record<SourceLevel, number> = { managed: 0, local: 1, project: 2, user: 3, flag: 4 };
+const LEVEL_RANK: Record<SourceLevel, number> = { managed: 0, flag: 1, local: 2, project: 3, user: 4 };
+const LEVEL_COUNT = 5;
 const EFFECT_RANK: Record<Effect, number> = { deny: 0, ask: 1, allow: 2 };
 
 export interface CollectorResult {
@@ -49,7 +54,9 @@ function rulesFrom(sf: SettingsFile): PermissionRule[] {
         tool: parseTool(matcher),
         sourceFile: sf.file,
         sourceLevel: sf.level,
-        precedenceRank: LEVEL_RANK[sf.level] * 3 + EFFECT_RANK[effect],
+        // Effect-first: any deny ranks ahead of any ask, any ask ahead of any
+        // allow, regardless of tier. Tier only breaks ties within an effect.
+        precedenceRank: EFFECT_RANK[effect] * LEVEL_COUNT + LEVEL_RANK[sf.level],
       });
     }
   }
@@ -81,34 +88,59 @@ function hooksFrom(sf: SettingsFile): Hook[] {
 }
 
 function sandboxFrom(files: SettingsFile[]): SandboxConfig | null {
+  // Per-field tier merge (Step 5): each field is taken independently from the
+  // highest-precedence file that defines it — `files` arrives sorted by level
+  // rank. Provenance per field lands in fieldSources for H6 attribution.
+  let found = false;
+  let enabled: boolean | null = null;
+  let allowUnsandboxedCommands: boolean | null = null;
+  let networkAllowlist: string[] = [];
+  const fieldSources: Record<string, string> = {};
+
   for (const sf of files) {
     const sb = sf.data.sandbox;
     if (typeof sb !== "object" || sb === null) continue;
+    found = true;
     const s = sb as Record<string, unknown>;
+    if (enabled === null && typeof s.enabled === "boolean") {
+      enabled = s.enabled;
+      fieldSources.enabled = sf.file;
+    }
+    if (allowUnsandboxedCommands === null && typeof s.allowUnsandboxedCommands === "boolean") {
+      allowUnsandboxedCommands = s.allowUnsandboxedCommands;
+      fieldSources.allowUnsandboxedCommands = sf.file;
+    }
     const network = (s.network ?? {}) as Record<string, unknown>;
     const allowlist = [
       ...asStringArray(network.allowedDomains),
       ...asStringArray(network.allowedHosts),
       ...asStringArray(s.allowedDomains),
     ].map(redact);
-    return {
-      enabled: typeof s.enabled === "boolean" ? s.enabled : null,
-      allowUnsandboxedCommands:
-        typeof s.allowUnsandboxedCommands === "boolean" ? s.allowUnsandboxedCommands : null,
-      networkAllowlist: allowlist,
-      notes: "Egress filtering is hostname-only per vendor docs (TLS-blind; see landscape §1)",
-    };
+    if (!("networkAllowlist" in fieldSources) && allowlist.length > 0) {
+      networkAllowlist = allowlist;
+      fieldSources.networkAllowlist = sf.file;
+    }
   }
-  return null;
+
+  if (!found) return null;
+  return {
+    enabled,
+    allowUnsandboxedCommands,
+    networkAllowlist,
+    notes: "Egress filtering is hostname-only per vendor docs (TLS-blind; see landscape §1)",
+    fieldSources,
+  };
 }
 
-function defaultModeFrom(files: SettingsFile[]): string | null {
+function defaultModeFrom(files: SettingsFile[]): { value: string | null; sourceFile: string | null } {
   // First hit in precedence order wins — `files` arrives sorted by level rank.
   for (const sf of files) {
     const perms = (sf.data.permissions ?? {}) as Record<string, unknown>;
-    if (typeof perms.defaultMode === "string") return redact(perms.defaultMode);
+    if (typeof perms.defaultMode === "string") {
+      return { value: redact(perms.defaultMode), sourceFile: sf.file };
+    }
   }
-  return null;
+  return { value: null, sourceFile: null };
 }
 
 function mcpServersFrom(
@@ -135,6 +167,7 @@ function mcpServersFrom(
       // SR2: env VALUES are dropped unconditionally — key names only.
       envKeys: typeof cfg.env === "object" && cfg.env !== null ? Object.keys(cfg.env) : [],
       declaredTools: null, // never obtained by executing the server (SR1)
+      enablement: null,
       sourceFile,
       instanceId,
     });
@@ -159,6 +192,41 @@ async function loadSettings(
   return out.sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level]);
 }
 
+// Vendor semantics: project settings live at the GIT ROOT — scanning a nested
+// package directory still applies <gitRoot>/.claude/settings[.local].json.
+// Walk up looking for a .git entry (directory, or file for worktrees) using
+// read-only existence checks (SR1). A symlinked .git is not treated as a
+// repository root (T4). No .git anywhere up the chain → the scanned directory
+// itself is the project root.
+async function resolveProjectRoot(scanned: string): Promise<string> {
+  let dir = scanned;
+  for (;;) {
+    try {
+      const st = await fs.lstat(path.join(dir, ".git"));
+      if (st.isDirectory() || st.isFile()) return dir;
+    } catch {
+      // no .git at this level
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) return scanned;
+    dir = parent;
+  }
+}
+
+// ~/.claude.json entries under `projects` are keyed by the directory Claude
+// was launched from; entries for the git root or the scanned directory both
+// belong to this project instance.
+function projectEntriesFor(
+  claudeJson: Record<string, unknown> | undefined,
+  targets: Set<string>,
+): Array<Record<string, unknown>> {
+  const projects = claudeJson?.projects;
+  if (typeof projects !== "object" || projects === null) return [];
+  return Object.entries(projects as Record<string, unknown>)
+    .filter(([key, v]) => targets.has(path.resolve(key)) && typeof v === "object" && v !== null)
+    .map(([, v]) => v as Record<string, unknown>);
+}
+
 export async function collectClaudeCode(projectRoots: string[]): Promise<CollectorResult> {
   const issues: ParseIssue[] = [];
   const home = os.homedir();
@@ -171,10 +239,12 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
   ];
   const userSettings = await loadSettings(userCandidates, issues);
 
-  // ~/.claude.json carries user-level MCP server registrations.
+  // ~/.claude.json carries user-level MCP server registrations plus
+  // per-project entries (MCP servers and .mcp.json enable/disable choices).
   const claudeJsonPath = path.join(home, ".claude.json");
   const claudeJson = await readJsonConfig(claudeJsonPath, issues);
 
+  const userMode = defaultModeFrom(userSettings);
   const userInstance: AgentInstance = {
     id: "claude-code:user",
     platform: "claude-code",
@@ -185,7 +255,8 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
       ...userSettings.map((s) => s.file),
       ...(claudeJson ? [claudeJsonPath] : []),
     ],
-    defaultMode: defaultModeFrom(userSettings),
+    defaultMode: userMode.value,
+    defaultModeSourceFile: userMode.sourceFile,
     permissionRules: userSettings.flatMap(rulesFrom),
     sandbox: sandboxFrom(userSettings),
     hooks: userSettings.flatMap(hooksFrom),
@@ -197,8 +268,13 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
     }
   }
 
+  const seenRoots = new Set<string>();
   for (const root of projectRoots) {
-    const abs = path.resolve(root);
+    const scanned = path.resolve(root);
+    const abs = await resolveProjectRoot(scanned);
+    if (seenRoots.has(abs)) continue;
+    seenRoots.add(abs);
+
     const projCandidates = [
       ...userCandidates,
       { file: path.join(abs, ".claude", "settings.local.json"), level: "local" as const },
@@ -207,25 +283,58 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
     const settings = await loadSettings(projCandidates, issues);
     const mcpJsonPath = path.join(abs, ".mcp.json");
     const mcpJson = await readJsonConfig(mcpJsonPath, issues);
+    const entries = projectEntriesFor(claudeJson, new Set([abs, scanned]));
 
-    const hasProjectConfig = settings.some((s) => s.level === "project" || s.level === "local") || !!mcpJson;
+    const hasProjectConfig =
+      settings.some((s) => s.level === "project" || s.level === "local") ||
+      !!mcpJson ||
+      entries.length > 0;
     if (!hasProjectConfig) continue;
 
     const id = `claude-code:project:${hash8(abs)}`;
+    const mode = defaultModeFrom(settings);
     instances.push({
       id,
       platform: "claude-code",
       version: null,
       scope: "project",
       projectPath: abs,
-      configFiles: [...settings.map((s) => s.file), ...(mcpJson ? [mcpJsonPath] : [])],
-      defaultMode: defaultModeFrom(settings),
+      configFiles: [
+        ...settings.map((s) => s.file),
+        ...(mcpJson ? [mcpJsonPath] : []),
+        ...(entries.length > 0 ? [claudeJsonPath] : []),
+      ],
+      defaultMode: mode.value,
+      defaultModeSourceFile: mode.sourceFile,
       // Full effective set (managed+user+local+project), not just project-file rules.
       permissionRules: settings.flatMap(rulesFrom),
       sandbox: sandboxFrom(settings),
       hooks: settings.flatMap(hooksFrom),
     });
-    if (mcpJson) mcpServers.push(...mcpServersFrom(mcpJson, mcpJsonPath, id));
+
+    if (mcpJson) {
+      // Approval state for .mcp.json-declared servers is recorded in the
+      // matching ~/.claude.json project entry. Disabled wins on conflict
+      // (conservative). Null = no recorded choice — NOT "active" (SR4).
+      const enabledNames = new Set(
+        entries.flatMap((e) => asStringArray(e.enabledMcpjsonServers)).map(redact),
+      );
+      const disabledNames = new Set(
+        entries.flatMap((e) => asStringArray(e.disabledMcpjsonServers)).map(redact),
+      );
+      for (const srv of mcpServersFrom(mcpJson, mcpJsonPath, id)) {
+        const enablement = disabledNames.has(srv.name)
+          ? "disabled"
+          : enabledNames.has(srv.name)
+            ? "enabled"
+            : null;
+        mcpServers.push({ ...srv, enablement });
+      }
+    }
+    // Project-scoped MCP servers registered directly in ~/.claude.json.
+    for (const entry of entries) {
+      mcpServers.push(...mcpServersFrom(entry, claudeJsonPath, id));
+    }
   }
 
   return { instances, mcpServers, issues };

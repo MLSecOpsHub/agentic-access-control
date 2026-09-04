@@ -16,14 +16,10 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
   const inst = s.instances.find((i) => i.id === id);
   if (!inst) notFound();
 
-  // Display grouping only (deny, ask, allow) — deliberately NOT an
-  // evaluation-order claim; see local/mvp-review-accuracy-analysis.md (F1).
-  const effectOrder = { deny: 0, ask: 1, allow: 2 } as const;
+  // Evaluation-order view (hardening Step 5): precedenceRank is effect-first
+  // per documented vendor semantics — deny → ask → allow across all tiers.
   const rules = [...inst.permissionRules].sort(
-    (a, b) =>
-      effectOrder[a.effect] - effectOrder[b.effect] ||
-      a.sourceLevel.localeCompare(b.sourceLevel) ||
-      a.matcher.localeCompare(b.matcher),
+    (a, b) => a.precedenceRank - b.precedenceRank || a.matcher.localeCompare(b.matcher),
   );
   const servers = s.mcpServers.filter((m) => m.instanceId === inst.id);
   const findings = sortFindings(s.findings.filter((f) => f.instanceId === inst.id));
@@ -46,9 +42,10 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
 
       <h2>Configured permission declarations ({rules.length})</h2>
       <p className="meta">
-        Declarations merged from all settings tiers, grouped by effect for display with per-rule
-        provenance. This table does not claim evaluation order — the platform&apos;s own evaluator
-        is ground truth (SR4: verify against the source file).
+        Declarations merged from all settings tiers, ordered by the documented evaluation
+        semantics: deny → ask → allow, regardless of tier — a deny in any file outranks an allow
+        in any other. These are configured declarations, not proof of enforcement — the
+        platform&apos;s own evaluator is ground truth (SR4: verify against the source file).
       </p>
       <div className="tablewrap">
         <table>
@@ -145,7 +142,11 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
             <tbody>
               {servers.map((m, i) => (
                 <tr key={i}>
-                  <td><b>{m.name}</b></td>
+                  <td>
+                    <b>{m.name}</b>
+                    {m.enablement === "disabled" && <> <span className="pill">disabled by user</span></>}
+                    {m.enablement === "enabled" && <> <span className="pill">approved</span></>}
+                  </td>
                   <td><span className="pill">{m.transport}</span></td>
                   <td><code>{[m.commandOrUrl, ...m.args].join(" ")}</code></td>
                   <td className="hide-sm meta">{m.envKeys.length > 0 ? m.envKeys.join(", ") : "—"}</td>

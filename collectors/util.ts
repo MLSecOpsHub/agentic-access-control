@@ -63,10 +63,13 @@ const SKIP_DIRS = new Set(["node_modules", ".git", ".next", "dist", "build", "ta
 
 /**
  * Walk `root` up to `maxDepth`, returning files whose basename is in `names`.
- * Symlinks are never followed (T4); noisy build dirs are skipped.
+ * Symlinks are never followed (T4); noisy build dirs are skipped. A resolved-
+ * path prefix check keeps every visited entry under the scanned root — belt
+ * and braces on top of the symlink skip.
  */
 export async function findFilesNamed(root: string, names: Set<string>, maxDepth = 4): Promise<string[]> {
   const out: string[] = [];
+  const rootResolved = path.resolve(root);
   async function walk(dir: string, depth: number): Promise<void> {
     if (depth > maxDepth) return;
     let entries;
@@ -78,6 +81,8 @@ export async function findFilesNamed(root: string, names: Set<string>, maxDepth 
     for (const e of entries) {
       const full = path.join(dir, e.name);
       if (e.isSymbolicLink()) continue;
+      const resolved = path.resolve(full);
+      if (resolved !== rootResolved && !resolved.startsWith(rootResolved + path.sep)) continue;
       if (e.isDirectory()) {
         if (!SKIP_DIRS.has(e.name)) await walk(full, depth + 1);
       } else if (e.isFile() && names.has(e.name)) {

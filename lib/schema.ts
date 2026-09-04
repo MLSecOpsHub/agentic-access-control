@@ -15,6 +15,11 @@ export const PermissionRuleSchema = z.object({
   tool: z.string().nullable(),
   sourceFile: z.string(),
   sourceLevel: SourceLevelSchema,
+  // Effect-first rank per documented vendor semantics: deny → ask → allow
+  // across ALL settings tiers; tier only breaks ties within an effect.
+  // Lower rank = evaluated earlier. (Reimplemented in hardening Step 5 —
+  // ranks in snapshots collected before that use a retired level-first
+  // encoding and must not be compared across snapshots.)
   precedenceRank: z.number(),
 });
 export type PermissionRule = z.infer<typeof PermissionRuleSchema>;
@@ -24,6 +29,10 @@ export const SandboxConfigSchema = z.object({
   allowUnsandboxedCommands: z.boolean().nullable(),
   networkAllowlist: z.array(z.string()),
   notes: z.string().nullable(),
+  // Per-field provenance: field name → settings file that contributed the
+  // winning value (per-field tier merge, hardening Step 5). Defaults to {}
+  // so pre-Step-5 snapshots still validate.
+  fieldSources: z.record(z.string(), z.string()).default({}),
 });
 export type SandboxConfig = z.infer<typeof SandboxConfigSchema>;
 
@@ -47,6 +56,10 @@ export const AgentInstanceSchema = z.object({
   projectPath: z.string().nullable(),
   configFiles: z.array(z.string()),
   defaultMode: z.string().nullable(),
+  // File that contributed the winning defaultMode (true source attribution
+  // for H1; hardening Step 5). Null when defaultMode is null or the snapshot
+  // predates Step 5.
+  defaultModeSourceFile: z.string().nullable().default(null),
   permissionRules: z.array(PermissionRuleSchema),
   sandbox: SandboxConfigSchema.nullable(),
   hooks: z.array(HookSchema),
@@ -61,6 +74,10 @@ export const McpServerSchema = z.object({
   // Names only — values are dropped unconditionally at collection time (SR2).
   envKeys: z.array(z.string()),
   declaredTools: z.array(z.string()).nullable(),
+  // For project-scoped .mcp.json declarations: the user's recorded approval
+  // choice from ~/.claude.json enabledMcpjsonServers/disabledMcpjsonServers.
+  // Null = no recorded choice found (NOT a claim the server is active — SR4).
+  enablement: z.enum(["enabled", "disabled"]).nullable().default(null),
   sourceFile: z.string(),
   instanceId: z.string(),
 });

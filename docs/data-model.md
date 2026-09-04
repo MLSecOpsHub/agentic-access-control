@@ -30,6 +30,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | `projectPath` | string \| null | Absolute path when scope = project |
 | `configFiles` | string[] | Every file read to build this instance — the provenance universe |
 | `defaultMode` | string \| null | Platform permission mode if configured (e.g. `plan`, `acceptEdits`, `bypassPermissions`) |
+| `defaultModeSourceFile` | string \| null | File that contributed the winning `defaultMode` (per-field tier merge, Step 5). Null when mode is null or the snapshot predates Step 5 |
 | `permissionRules` | PermissionRule[] | Merged, precedence-ranked |
 | `sandbox` | SandboxConfig \| null | |
 | `hooks` | Hook[] | |
@@ -43,7 +44,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | `tool` | string \| null | Parsed tool name when extractable from the matcher |
 | `sourceFile` | string | Exact file that contributed the rule |
 | `sourceLevel` | `"managed" \| "user" \| "project" \| "local" \| "flag"` | Settings tier |
-| `precedenceRank` | number | ⚠️ Legacy display-ordering value using a level-first encoding that does **not** match vendor rule-evaluation semantics (global deny → ask → allow). The UI no longer shows it as evaluation order; scheduled for reimplementation in roadmap Step 5 |
+| `precedenceRank` | number | Effect-first evaluation rank per documented vendor semantics (Step 5): `EFFECT_RANK(deny=0, ask=1, allow=2) × 5 + LEVEL_RANK(managed=0, flag=1, local=2, project=3, user=4)`. Lower = evaluated earlier; any deny outranks any ask/allow regardless of tier. Ranks in snapshots collected before Step 5 use a retired level-first encoding — do not compare across that boundary |
 
 **Effect normalization note:** Claude Code's `deny → ask → allow` maps directly. Codex CLI approval policies and Gemini CLI trust settings map with loss; the collector spec ([collectors.md](collectors.md)) defines each mapping and the UI shows the native construct on hover/detail.
 
@@ -57,6 +58,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | `args` | string[] | Post-redaction |
 | `envKeys` | string[] | **Names only.** Values are dropped at collection time, never persisted (SR2) |
 | `declaredTools` | string[] \| null | Only if statically declared; never obtained by *running* the server (SR1) |
+| `enablement` | `"enabled" \| "disabled" \| null` | For `.mcp.json`-declared servers: the user's recorded approval choice from `~/.claude.json` `enabledMcpjsonServers`/`disabledMcpjsonServers` (disabled wins on conflict). Null = no recorded choice — **not** a claim the server is active (SR4) |
 | `sourceFile` | string | |
 | `instanceId` | string | Owning AgentInstance |
 
@@ -68,6 +70,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | `allowUnsandboxedCommands` | boolean \| null |
 | `networkAllowlist` | string[] |
 | `notes` | string \| null (platform-specific caveats, e.g. "hostname-only egress filtering") |
+| `fieldSources` | Record<string, string> (field name → file that contributed the winning value; per-field tier merge, Step 5. `{}` in pre-Step-5 snapshots) |
 
 ## Hook
 

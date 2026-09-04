@@ -34,6 +34,7 @@ export async function collectGenericMcp(projectRoots: string[]): Promise<Collect
         projectPath: abs,
         configFiles: [file],
         defaultMode: null,
+        defaultModeSourceFile: null,
         permissionRules: [],
         sandbox: null,
         hooks: [],
@@ -51,6 +52,7 @@ export async function collectGenericMcp(projectRoots: string[]): Promise<Collect
           args: asStringArray(cfg.args).map(redact),
           envKeys: typeof cfg.env === "object" && cfg.env !== null ? Object.keys(cfg.env) : [],
           declaredTools: null,
+          enablement: null, // generic manifests carry no Claude-style approval state
           sourceFile: file,
           instanceId: id,
         });

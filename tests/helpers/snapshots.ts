@@ -13,7 +13,7 @@ export function makeRule(overrides: Partial<PermissionRule> = {}): PermissionRul
     tool: "Read",
     sourceFile: "/tmp/fixture/.claude/settings.json",
     sourceLevel: "user",
-    precedenceRank: 9,
+    precedenceRank: 4, // effect-first: deny(0)*5 + user(4)
     ...overrides,
   };
 }
@@ -26,6 +26,7 @@ export function makeServer(overrides: Partial<McpServer> = {}): McpServer {
     args: ["-y", "@modelcontextprotocol/server-github"],
     envKeys: ["GITHUB_TOKEN"],
     declaredTools: null,
+    enablement: null,
     sourceFile: "/tmp/fixture/.claude.json",
     instanceId: "claude-code:user",
     ...overrides,
@@ -48,6 +49,7 @@ export function makeSnapshot(overrides: Partial<Snapshot> = {}): Snapshot {
         projectPath: null,
         configFiles: ["/tmp/fixture/.claude/settings.json"],
         defaultMode: "acceptEdits",
+        defaultModeSourceFile: "/tmp/fixture/.claude/settings.json",
         permissionRules: [makeRule()],
         sandbox: null,
         hooks: [],

@@ -23,7 +23,7 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 ## 4. Jobs to be done
 
 1. **Inventory** — "List every agent instance (platform × scope) on this machine and the config files that define it."
-2. **Configured permissions** — "For an instance, show the merged allow/ask/deny declarations across all settings tiers, each rule traceable to its source file." (An evaluation-order view returns only once backed by vendor-conformance tests — hardening roadmap Step 5.)
+2. **Configured permissions** — "For an instance, show the merged allow/ask/deny declarations across all settings tiers, each rule traceable to its source file." (The evaluation-order view returned with hardening Step 5, backed by vendor-conformance tests.)
 3. **MCP surface** — "List every configured MCP server: transport, command/URL, env key names, declaring file."
 4. **Risk** — "Flag posture that a security reviewer would flag: bypass modes, wildcard allows, unpinned `npx -y` servers, secret-bearing env, disabled sandboxes."
 5. **Drift** — "Diff the two most recent snapshots at rule level."
@@ -33,7 +33,7 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 | # | Feature | Notes |
 |---|---|---|
 | F1 | Agent instance inventory | Platforms: Claude Code (full), Codex CLI + Gemini CLI (spec'd, stubbed), generic `mcp.json` |
-| F2 | Configured-permission view | Rules table per instance: effect, matcher, source file, settings level — grouped by effect for display, explicitly not an evaluation-order claim |
+| F2 | Configured-permission view | Rules table per instance: effect, matcher, source file, settings level — ordered by documented evaluation semantics (deny → ask → allow across tiers), still declarations rather than proof of enforcement (SR4) |
 | F3 | MCP server inventory | Env **key names only** — values redacted at collection (SR2) |
 | F4 | Sandbox & hook posture | Sandbox enabled/escape flags; hook event + truncated command preview |
 | F5 | Risk findings | Heuristics (see [collectors.md](collectors.md) §6; H5 retired) with severity + evidence |

@@ -90,6 +90,7 @@ const SERVER_FINGERPRINT_FIELDS = [
   "args",
   "envKeys",
   "declaredTools",
+  "enablement",
   "sourceFile",
 ] as const;
 
