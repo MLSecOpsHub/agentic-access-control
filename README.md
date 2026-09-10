@@ -38,6 +38,7 @@ The dashboard renders the newest snapshot in `data/snapshots/`, falling back to 
 | `docs/product-spec.md` | Personas, jobs, MVP features, non-goals, competitive positioning |
 | `docs/security-architecture.md` | Components, trust boundaries, security requirements SR1–SR5 |
 | `docs/threat-model.md` | STRIDE pass mapped to OWASP Agentic Top 10 (ASI03) |
+| `docs/threat-scenarios.md` | **Spec (not implemented)** — threat scenario engine composing collected posture into cited attack-path scenarios |
 | `docs/data-model.md` | Canonical schema (mirrored by `lib/schema.ts` zod schemas) |
 | `docs/collectors.md` | Per-platform collector specs: file locations, precedence, risk heuristics |
 | `docs/roadmap.md` | Phase 2 cloud connectors, Phase 3 fleet aggregation, permanent non-goals |

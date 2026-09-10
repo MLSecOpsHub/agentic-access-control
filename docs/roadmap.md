@@ -38,9 +38,10 @@ Prereq before any connector ships: full threat-model re-run — cloud creds and 
 
 ## Ideas parking lot (unscheduled)
 
-- Heuristic packs as data (user-extensible rules, à la `agent-audit`'s 296 rules).
+- Heuristic packs as data (user-extensible rules, à la `agent-audit`'s 296 rules). *Partially promoted: the threat-scenario catalog ([threat-scenarios.md](threat-scenarios.md) §4) is the first data-driven rule set; user-extensible packs remain parked.*
 - Export findings as SARIF for code-scanning UIs.
-- Claude Code plugin/hook that surfaces "AgentLens: 2 new findings" inside the agent session (display only — the hook reads snapshots, never gates).
+- ~~Claude Code plugin/hook that surfaces "AgentLens: 2 new findings" inside the agent session~~ **Promoted** into the threat-scenario spec ([threat-scenarios.md](threat-scenarios.md) §8.3) — display only, last in that spec's sequencing.
+- **Threat scenario engine** — spec'd 2026-09-05 in [threat-scenarios.md](threat-scenarios.md): composes collected posture into cited attack-path scenarios (observe-only, Step 6-adjacent; v1-static subset may precede the Step 6 remodel per its §6 decision).
 
 ## Permanent non-goals
 
