@@ -1,9 +1,46 @@
 {
-  "name": "agentlens",
+  "name": "@mlsecopshub/agentlens",
   "version": "0.1.0",
-  "private": true,
-  "license": "Apache-2.0",
   "description": "Read-only permission observatory for local AI agents",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MLSecOpsHub/agentic-access-control.git"
+  },
+  "homepage": "https://github.com/MLSecOpsHub/agentic-access-control#readme",
+  "bugs": {
+    "url": "https://github.com/MLSecOpsHub/agentic-access-control/issues"
+  },
+  "keywords": [
+    "ai-agents",
+    "mcp",
+    "claude-code",
+    "gemini-cli",
+    "permissions",
+    "security",
+    "posture",
+    "read-only"
+  ],
+  "bin": {
+    "agentlens": "bin/agentlens.mjs"
+  },
+  "files": [
+    "bin",
+    "app",
+    "collectors",
+    "lib",
+    "data/fixtures",
+    "next.config.mjs",
+    "tsconfig.json",
+    ".next",
+    "!.next/cache",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "NEXT_TELEMETRY_DISABLED=1 next dev -H 127.0.0.1",
     "build": "NEXT_TELEMETRY_DISABLED=1 next build",
@@ -11,13 +48,16 @@
     "collect": "tsx collectors/collect.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test",
+    "prepack": "npm run build"
   },
   "dependencies": {
-    "next": "^15.5.27",
+    "next": "15.5.27",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
@@ -25,7 +65,6 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.11"
