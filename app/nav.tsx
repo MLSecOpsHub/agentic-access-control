@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/findings", label: "Findings" },
   { href: "/threat-model", label: "Threat scenarios" },
   { href: "/live", label: "Live" },
+  { href: "/share", label: "Share card" },
 ];
 
 export function Nav() {
