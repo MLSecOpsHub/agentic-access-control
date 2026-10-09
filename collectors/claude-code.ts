@@ -246,6 +246,32 @@ function projectEntriesFor(
     .map(([, v]) => v as Record<string, unknown>);
 }
 
+// Default project roots when the CLI is given none: the keys of the `projects`
+// map in ~/.claude.json — every directory Claude Code has been launched from.
+// Read-only existence checks only (SR1); symlinked entries are not followed
+// (T4); $HOME and the filesystem root are excluded because treating them as a
+// project would misfile user-tier settings as project-tier declarations.
+export async function discoverProjectRoots(): Promise<string[]> {
+  const home = os.homedir();
+  const claudeJson = await readJsonConfig(path.join(home, ".claude.json"), []);
+  const projects = claudeJson?.projects;
+  if (typeof projects !== "object" || projects === null) return [];
+  const out = new Set<string>();
+  for (const key of Object.keys(projects as Record<string, unknown>)) {
+    if (!path.isAbsolute(key)) continue;
+    const abs = path.resolve(key);
+    if (abs === path.resolve(home) || abs === path.parse(abs).root) continue;
+    try {
+      const st = await fs.lstat(abs);
+      if (!st.isDirectory()) continue;
+    } catch {
+      continue;
+    }
+    out.add(abs);
+  }
+  return [...out].sort();
+}
+
 export async function collectClaudeCode(projectRoots: string[]): Promise<CollectorResult> {
   const issues: ParseIssue[] = [];
   const home = os.homedir();
@@ -305,10 +331,20 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
     const mcpJson = await readJsonConfig(mcpJsonPath, issues);
     const entries = projectEntriesFor(claudeJson, new Set([abs, scanned]));
 
+    // A bare ~/.claude.json project entry (Claude was merely launched here)
+    // does not make a project instance — only permission-relevant content
+    // does. Otherwise discovered roots would each render as an instance that
+    // just repeats the user tier.
+    const entriesWithContent = entries.filter(
+      (e) =>
+        (typeof e.mcpServers === "object" && e.mcpServers !== null && Object.keys(e.mcpServers).length > 0) ||
+        asStringArray(e.enabledMcpjsonServers).length > 0 ||
+        asStringArray(e.disabledMcpjsonServers).length > 0,
+    );
     const hasProjectConfig =
       settings.some((s) => s.level === "project" || s.level === "local") ||
       !!mcpJson ||
-      entries.length > 0;
+      entriesWithContent.length > 0;
     if (!hasProjectConfig) continue;
 
     const id = `claude-code:project:${hash8(abs)}`;
@@ -322,7 +358,7 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
       configFiles: [
         ...settings.map((s) => s.file),
         ...(mcpJson ? [mcpJsonPath] : []),
-        ...(entries.length > 0 ? [claudeJsonPath] : []),
+        ...(entriesWithContent.length > 0 ? [claudeJsonPath] : []),
       ],
       defaultMode: mode.value,
       defaultModeSourceFile: mode.sourceFile,

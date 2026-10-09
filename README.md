@@ -24,6 +24,7 @@ It targets the whitespace the research identifies: individual/prosumer tooling (
 npm install
 npm run dev        # dashboard on http://127.0.0.1:3000 with bundled fixture data
 npm run collect    # scan this machine read-only → data/snapshots/<timestamp>.json
+                   # (no args: cwd + every project listed in ~/.claude.json; or pass roots explicitly)
 npm test           # executable SR1–SR5 verification (see security posture below)
 ```
 

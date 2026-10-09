@@ -168,12 +168,13 @@ export interface CollectorRun {
 export async function runCollector(
   m: Machine,
   extraEnv: Record<string, string> = {},
+  roots: string[] = [m.project, m.projectBad],
 ): Promise<CollectorRun> {
   const tsxCli = path.join(REPO_ROOT, "node_modules", "tsx", "dist", "cli.mjs");
   const collectScript = path.join(REPO_ROOT, "collectors", "collect.ts");
   const result = spawnSync(
     process.execPath,
-    [tsxCli, collectScript, m.project, m.projectBad],
+    [tsxCli, collectScript, ...roots],
     {
       cwd: m.workDir,
       env: { ...process.env, HOME: m.home, ...extraEnv },

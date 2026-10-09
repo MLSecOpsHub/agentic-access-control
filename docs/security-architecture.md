@@ -37,7 +37,7 @@ One-way pipeline: files → snapshot → UI. There is no arrow pointing back at 
 Collectors must not modify agent configuration or any file outside `data/snapshots/`.
 - Files opened for read only; single allowed subprocess shape is `<platform-binary> --version`.
 - MCP servers are **never executed** to enumerate tools; only statically declared tool lists are recorded.
-- Path allowlist per collector ([collectors.md](collectors.md) §1.3); symlinks not followed during project scans.
+- Path allowlist per collector ([collectors.md](collectors.md) §1.3); symlinks not followed during project scans. Default project roots come from `~/.claude.json` (already in the allowlist) via `lstat` existence checks only.
 - **Test:** [`tests/sr1-readonly.test.ts`](../tests/sr1-readonly.test.ts) — runs the real collector against a fixture HOME + project tree; asserts every scanned file is size- and mtime-identical afterwards and the only created file is the snapshot under `data/snapshots/`.
 
 ### SR2 — Secrets redaction at collection time

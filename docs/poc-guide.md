@@ -46,11 +46,11 @@ Open **http://127.0.0.1:3000**. With no snapshots collected yet, the dashboard r
 ### 3. Snapshot your real machine
 
 ```bash
-npm run collect              # scans user-level configs + current directory
-# or: npm run collect -- ~/myproject ~/otherproject
+npm run collect              # user-level configs + cwd + every project listed in ~/.claude.json
+# or: npm run collect -- ~/myproject ~/otherproject   (explicit roots only; disables discovery)
 ```
 
-Refresh the dashboard — it now shows your real posture (the fixture notice disappears). The snapshot lives in `data/snapshots/<timestamp>.json` (gitignored).
+The collector prints how many project roots it scanned and how many came from `~/.claude.json` (the directories Claude Code has been launched from). Refresh the dashboard — it now shows your real posture (the fixture notice disappears). The snapshot lives in `data/snapshots/<timestamp>.json` (gitignored).
 
 **Check (SR1, read-only):** your `~/.claude` files' mtimes are untouched — `stat -c '%y' ~/.claude/settings.json` before/after.
 
