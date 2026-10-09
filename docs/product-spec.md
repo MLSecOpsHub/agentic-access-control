@@ -39,6 +39,9 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 | F5 | Risk findings | Heuristics (see [collectors.md](collectors.md) §6; H5 retired) with severity + evidence |
 | F6 | Snapshot drift | Rule-level added/removed/changed between two newest snapshots; content hashes shown |
 | F7 | Interpretation banner | Persistent SR4 caveat on every page |
+| F8 | Threat scenarios | Catalog S1–S4 composing findings into cited paths with severance hints ([threat-scenarios.md](threat-scenarios.md)) |
+| F9 | Share card | Counts-only pasteable summary (`/share`), no identifying strings by tested contract |
+| F10 | CLI | `npx @mlsecopshub/agentlens scan` — collect + serve, data outside the package |
 
 ## 6. Non-goals (v1) and permanent non-goals
 
@@ -66,4 +69,4 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 
 - Should project discovery scan a configured root list or walk `$HOME` (slow, privacy-heavier)? MVP: explicit roots via CLI args, default cwd.
 - Version detection per platform (parse `--version` output?) — MVP: best-effort, nullable field.
-- Packaging: npm package vs. clone-and-run. MVP: clone-and-run.
+- ~~Packaging: npm package vs. clone-and-run. MVP: clone-and-run.~~ Resolved 2026-10-09: `@mlsecopshub/agentlens` npm package with a `bin` (ships the production build; `next` pinned exactly so `next start` matches the shipped `.next`), clone-and-run still works.

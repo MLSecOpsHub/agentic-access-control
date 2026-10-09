@@ -1,6 +1,6 @@
 # AgentLens — Threat Scenario Engine (spec)
 
-Status: **v1-static implemented 2026-10-09** — schema (`ThreatScenarioSchema` in `lib/schema.ts`, confidence fields present per §6), engine (`lib/threat-scenarios.ts`), catalog with **S1 and S2** (`lib/scenario-catalog.ts`), precedence-aware reachability predicate (`lib/precedence.ts`), `/threat-model` page and per-instance section, tests (`tests/scenario-catalog.test.ts`). S3–S5, `declared+observed` confidence (Step 6 remodel) and the plugin (§8.3) are **not** implemented. This document is the design contract; when implementation diverges, fix one or the other before shipping.
+Status: **v1-static implemented 2026-10-09** — schema (`ThreatScenarioSchema` in `lib/schema.ts`, confidence fields present per §6), engine (`lib/threat-scenarios.ts`), catalog with **S1–S4** (`lib/scenario-catalog.ts`; S3/S4 added 2026-10-09), precedence-aware reachability predicate (`lib/precedence.ts`), `/threat-model` page, per-instance section and the counts-only share card (§8.4), tests on emitted objects **and rendered pages** (`tests/scenario-catalog.test.ts`, `tests/sr3-crawl.test.ts`). S5, `declared+observed` confidence (Step 6 remodel) and the plugin (§8.3) are **not** implemented. This document is the design contract; when implementation diverges, fix one or the other before shipping.
 
 ## 1. Purpose and positioning
 
@@ -64,14 +64,14 @@ Zod mirror to be added to `lib/schema.ts`; this table is the semantic contract.
 
 ## 5. Initial catalog (v1)
 
-Severity rule: base severity per scenario, **capped one level below the base when any precondition is `enablement: null`** (unknown approval) and **raised one level when confidence is `declared+observed`** (§6). Never exceeds `critical`.
+Severity rule: base severity per scenario, **capped one level below the base when any precondition is `enablement: null`** (unknown approval) and **raised one level when confidence is `declared+observed`** (§6). Never exceeds `critical`. *Exception (2026-10-09): S4's missing approval choice is the scenario's own atom, not an uncertainty about another atom, so the cap does not apply to S4 — it reports at its base severity.*
 
 | Id | Path (all preconditions must hold) | Base severity | Categories |
 |---|---|---|---|
 | S1 supply-chain → exfil | stdio MCP server via unpinned runner (H3-high atom) + credential env keys on any server for the instance (H4 atom) + effective `allow Bash` or sandbox disabled/escapable (H2/H6 atoms) | critical | ASI02, ASI03, ASI10 analog; STRIDE E/I |
 | S2 gating collapse | `defaultMode` bypass (H1) + any MCP server or hook present | critical | ASI03, ASI05; E |
-| S3 hook injection chain | Hook piping remote content to shell (H7) + effective `allow Bash`/`Write` + sandbox disabled (H6) | high | ASI02, ASI05; T/E |
-| S4 unreviewed project takeover | Project-tier or local-tier `allow` on Bash/Write-class tools + `.mcp.json` servers with `enablement: null` in a git repo (i.e., team-writable config, no recorded approval) | high | ASI03, ASI05; S/E |
+| S3 hook injection chain *(implemented)* | Hook piping remote content to shell (H7) + effective `allow` on the platform's shell or write tool (`Bash`/`Write`, `run_shell_command`/`write_file`) + sandbox disabled (H6) | high | ASI02, ASI05; T/E |
+| S4 unreviewed project takeover *(implemented)* | Project-tier or local-tier `allow` on a shell/write-class tool, not outranked by an unbounded deny, + an MCP server declared in a file under the project root (`.mcp.json`, `.gemini/settings.json`) with `enablement: null` (team-writable config, no recorded approval) | high (no null cap, see above) | ASI03, ASI05; S/E |
 | S5 credential concentration | ≥2 servers with credential env keys (H4) + any effective allow on a file-read tool covering home/config paths | medium | ASI03; I |
 
 Catalog entries must each ship with: a fixture machine that triggers it, a fixture one-precondition-short that must **not** trigger it, and a wording test (§9).
@@ -98,6 +98,9 @@ Scenario list, severity-sorted; each expands to the precondition chain with per-
 ### 8.2 Per-instance section
 On `/agents/<id>`: scenarios owned by the instance, below findings.
 
+### 8.4 Share card `/share` (implemented 2026-10-09)
+The one artifact designed to leave the machine, so it is counts-only by contract: instances per platform, declaration totals by effect, MCP totals by transport, findings by severity, scenario ids with counts and top severity, collectors run. **Never** file paths, rule matchers, server names, hostnames or machine ids. `lib/share-card.ts` builds it as a pure function; `tests/share-card.test.ts` asserts every identifying string in the fixture is absent; the SR3 crawl applies the §7 banned-phrase check to the rendered page. Copying is a user-triggered local clipboard action — no network.
+
 ### 8.3 Claude Code plugin (display-only, separate deliverable)
 The roadmap parking-lot item, promoted: a plugin whose skill + SessionStart hook reads the **newest verified snapshot** (hash check before trust — SR5) and prints a one-line summary in-session ("AgentLens: 2 threat scenarios for this project — open /threat-model"). Constraints: read-only (SR1), loopback dashboard link only (SR3), never a PreToolUse gate, degrades silently to nothing when no snapshot exists. It runs *inside* an agent session, i.e. inside M2's blast radius — see T13.
 
@@ -117,7 +120,7 @@ The roadmap parking-lot item, promoted: a plugin whose skill + SessionStart hook
 ## 11. Sequencing & acceptance
 
 1. ~~Land ThreatScenario schema (with confidence fields) + engine + S1/S2 + `/threat-model` page + tests.~~ **Done 2026-10-09** (preceded the Step 6 remodel per §6 decision; per-instance surface landed with it).
-2. S3–S5.
+2. ~~S3–S4~~ **Done 2026-10-09**, with the rendered-page wording test and the share card (8.4). S5 remains.
 3. Step 6 remodel lands → `declared+observed` confidence via the observed store.
 4. Plugin (8.3) last — it is a consumer, and it triggers the T14 threat-model update as a landing condition.
 

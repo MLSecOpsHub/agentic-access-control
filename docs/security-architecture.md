@@ -55,7 +55,8 @@ The live-tracking feature adds one ingestion listener: `POST /api/otel/v1/logs` 
 The dashboard aggregates a complete map of the machine's agent attack surface — permission gaps, MCP inventory, sandbox state. That artifact is exactly what an attacker doing recon wants. Therefore:
 - Dev/prod server binds `127.0.0.1` explicitly (`next dev -H 127.0.0.1`).
 - Zero outbound requests: no analytics, no update checks, no CDN assets, no remote fonts. Everything ships in the repo.
-- Snapshots are gitignored by default; committing one is an explicit user act.
+- Snapshots are gitignored by default; committing one is an explicit user act. The `agentlens` CLI stores them outside the package under `$XDG_DATA_HOME/agentlens` (override: `--data-dir` / `AGENTLENS_DATA_DIR`), never inside an npx install.
+- The share card (`/share`) is counts-only by tested contract (threat T15) — the only page whose text is designed to leave the machine.
 - **Test:** [`tests/sr3-egress.test.ts`](../tests/sr3-egress.test.ts) — runs the collector under a preload that records and blocks every network primitive (TCP/TLS/UDP/DNS; unix-socket IPC exempt) and asserts zero attempts; [`tests/sr3-crawl.test.ts`](../tests/sr3-crawl.test.ts) — boots the real dashboard and crawls every reachable page, asserting no `src`/`href`/`srcset`/CSS `url()` points off-machine.
 
 ### SR4 — Interpretation honesty

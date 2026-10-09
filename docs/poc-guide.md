@@ -13,6 +13,7 @@ A concise tour of what the proof-of-concept does today and how to exercise every
 | Risk findings | Heuristics: bypass modes, wildcard allows, `npx -y`/`uvx`-launched servers, credential env keys, disabled sandboxes, pipe-to-shell hooks | `/findings` |
 | Threat scenarios | Composes collected posture into cited attack-path scenarios (v1: S1 supply-chain → exfil, S2 gating collapse); each precondition cites its source file, with OWASP ASI/STRIDE tags and severance hints | `/threat-model`, `/agents/<id>` |
 | Snapshot drift | Rule/server-level diff between the two newest snapshots | Overview banner |
+| Share card | Counts-only summary (instances per platform, declarations, servers, findings, scenario ids) with a copy button — no paths, matchers, names or hostnames | `/share` |
 | Integrity & honesty rails | SHA-256 tamper-evidence per snapshot, snapshot-age display, permanent "interpretation, not enforcement" banner | every page |
 
 Everything is read-only and local-only: no config writes, no network egress, dashboard bound to 127.0.0.1.
@@ -31,17 +32,19 @@ npm install
 npm run dev
 ```
 
+Or, without cloning (once the package is published): `npx @mlsecopshub/agentlens scan` collects and serves in one go, storing snapshots under `~/.local/share/agentlens` (`--data-dir` to change, `--open` to launch a browser). The rest of this walkthrough uses the clone.
+
 Open **http://127.0.0.1:3000**. With no snapshots collected yet, the dashboard renders the bundled **sample fixture** (a deliberately risky demo posture) and says so in a notice.
 
-**Check:** four stat tiles (3 instances, 9 rules, 4 MCP servers, 8 findings); the orange "Read-only interpretation, not enforcement" banner; active page highlighted in the nav.
+**Check:** four stat tiles (4 instances, 11 rules, 5 MCP servers, 9 findings); the orange "Read-only interpretation, not enforcement" banner; active page highlighted in the nav.
 
 ### 2. Tour the fixture
 
 1. **Overview** — the `claude-code · project` instance shows a red `bypassPermissions` mode badge and 7 findings.
 2. Click it → **instance detail**: 4 configured permission declarations in evaluation order (denies first) with per-rule source file, an amber (disabled) sandbox card, one hook whose command pipes `curl` to `sh`, and 2 MCP servers.
 3. **MCP servers** — note `github` runs via `npx -y` and lists `GITHUB_PERSONAL_ACCESS_TOKEN` as an env *key* (its value never reached the snapshot).
-4. **Findings** — 8 findings from `critical` (H1 bypass mode) down to `low` (H7 hook), each with post-redaction evidence and provenance.
-5. **Threat scenarios** — the fixture's project instance triggers S1 and S2; expand one to see every precondition with its source file, the OWASP ASI / STRIDE tags, and the severance hint naming which single declaration breaks the path. Note the verbatim caveat: these are configured declarations composed by AgentLens, not an observed attack.
+4. **Findings** — 9 findings from `critical` (H1 bypass mode) down to `low` (H7 hook), each with post-redaction evidence and provenance. The `gemini-cli · user` instance contributes an H3 (unpinned `npx -y` server) and shows the per-platform **mapping notes** (trusted server, folder trust, uncollected inputs).
+5. **Threat scenarios** — the fixture's project instance triggers all four catalog entries (S1 critical, S2 critical, S3 high, S4 high); expand one to see every precondition with its source file, the OWASP ASI / STRIDE tags, and the severance hint naming which single declaration breaks the path. Note the verbatim caveat: these are configured declarations composed by AgentLens, not an observed attack.
 
 ### 3. Snapshot your real machine
 
@@ -91,7 +94,8 @@ Type-safety check for contributors: `npm run typecheck`.
 ## File map
 
 ```
-app/            dashboard pages (Overview, /agents/[id], /mcp, /findings, /threat-model, /live)
+app/            dashboard pages (Overview, /agents/[id], /mcp, /findings, /threat-model, /share, /live)
+bin/            `agentlens` CLI (scan | collect | serve) — the npx entry point
 collectors/     read-only collectors + `npm run collect` orchestrator
 lib/            zod schema, redaction, heuristics, scenario catalog + engine, hashing, snapshot loader
 data/fixtures/  bundled sample snapshot (committed)

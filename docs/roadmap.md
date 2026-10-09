@@ -4,6 +4,7 @@
 
 - Claude Code collector (full), Gemini CLI collector (settings tiers; shipped 2026-10-09) + generic MCP collector; Codex CLI collector spec'd and stubbed ([collectors.md](collectors.md) §3–4).
 - Default project-root discovery from `~/.claude.json` `projects` (2026-10-09) — `npm run collect` with no arguments covers every directory Claude Code has been launched from.
+- Threat scenarios S1–S4, `/share` counts-only card, `agentlens` CLI (`npx @mlsecopshub/agentlens scan`) — 2026-10-09.
 - Dashboard: overview, per-instance configured permissions, MCP inventory, findings, drift.
 - SR1–SR5 implemented and tested per [security-architecture.md](security-architecture.md).
 
