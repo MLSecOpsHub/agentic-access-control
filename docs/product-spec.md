@@ -32,7 +32,7 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 
 | # | Feature | Notes |
 |---|---|---|
-| F1 | Agent instance inventory | Platforms: Claude Code (full), Codex CLI + Gemini CLI (spec'd, stubbed), generic `mcp.json` |
+| F1 | Agent instance inventory | Platforms: Claude Code (full), Gemini CLI (settings tiers, tools allow/exclude, approval mode, sandbox, MCP, hooks — [collectors.md](collectors.md) §4), generic `mcp.json`; Codex CLI spec'd, stubbed |
 | F2 | Configured-permission view | Rules table per instance: effect, matcher, source file, settings level — ordered by documented evaluation semantics (deny → ask → allow across tiers), still declarations rather than proof of enforcement (SR4) |
 | F3 | MCP server inventory | Env **key names only** — values redacted at collection (SR2) |
 | F4 | Sandbox & hook posture | Sandbox enabled/escape flags; hook event + truncated command preview |
@@ -49,7 +49,7 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 
 | Tool | Overlap | Difference |
 |---|---|---|
-| `Tonyhzk/cc-permission-manager` (30★) | GUI over Claude Code permission configs | It is read-**write** and Claude-only; AgentLens is read-only, multi-platform, adds risk + drift |
+| `Tonyhzk/cc-permission-manager` (30★) | GUI over Claude Code permission configs | It is read-**write** and Claude-only; AgentLens is read-only, covers Claude Code + Gemini CLI + generic MCP manifests, adds risk, threat scenarios + drift |
 | `delexw/claude-code-trace` (321★) | Visibility into agent activity | Trace reads session *logs* (what happened); AgentLens reads *permissions* (what could happen) |
 | `scadastrangelove/agent-audit` (15★) | Local forensic audit, rule-based | Point-in-time forensics CLI; AgentLens is a continuously refreshable posture dashboard |
 | `karanb192/claude-code-hooks` (455★) | Safety tooling for individuals | Hooks act in-path (L1-ish); complementary — AgentLens would *display* installed hooks |

@@ -124,6 +124,9 @@ td code, .meta code, .notice code { background: var(--bg); border: 1px solid var
 
 .pill { display: inline-block; padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
 
+ul.notes { margin: 6px 0 14px; padding-left: 20px; }
+ul.notes li { margin: 4px 0; }
+
 /* scenario list */
 .scenario { margin: 12px 0; border: 1px solid var(--line); border-radius: 7px; }
 .scenario summary { cursor: pointer; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-weight: 500; background: var(--bg); transition: background 0.12s; }

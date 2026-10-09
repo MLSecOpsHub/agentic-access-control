@@ -37,7 +37,7 @@ interface SettingsFile {
   data: Record<string, unknown>;
 }
 
-function parseTool(matcher: string): string | null {
+export function parseTool(matcher: string): string | null {
   const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*(?:\(|$)/.exec(matcher);
   return m ? m[1] : null;
 }
@@ -63,8 +63,9 @@ function rulesFrom(sf: SettingsFile): PermissionRule[] {
   return rules;
 }
 
-function hooksFrom(sf: SettingsFile): Hook[] {
-  const hooks = sf.data.hooks;
+// `hooks: { <Event>: [ { matcher?, hooks: [ { type, command } ] } ] }` — the
+// shape Claude Code and Gemini CLI share.
+export function parseHooksBlock(hooks: unknown, sourceFile: string): Hook[] {
   if (typeof hooks !== "object" || hooks === null) return [];
   const out: Hook[] = [];
   for (const [rawEvent, entries] of Object.entries(hooks as Record<string, unknown>)) {
@@ -79,12 +80,16 @@ function hooksFrom(sf: SettingsFile): Hook[] {
         if (typeof h !== "object" || h === null) continue;
         const cmd = (h as Record<string, unknown>).command;
         if (typeof cmd === "string") {
-          out.push({ event, matcher, commandPreview: truncate(redact(cmd)), sourceFile: sf.file });
+          out.push({ event, matcher, commandPreview: truncate(redact(cmd)), sourceFile });
         }
       }
     }
   }
   return out;
+}
+
+function hooksFrom(sf: SettingsFile): Hook[] {
+  return parseHooksBlock(sf.data.hooks, sf.file);
 }
 
 function sandboxFrom(files: SettingsFile[]): SandboxConfig | null {
@@ -143,10 +148,15 @@ function defaultModeFrom(files: SettingsFile[]): { value: string | null; sourceF
   return { value: null, sourceFile: null };
 }
 
-function mcpServersFrom(
+// Shared `mcpServers` block parser. `bareUrlTransport` is what a `url` field
+// means when no `type` is declared: Claude Code documents `url` as HTTP (SSE
+// only with `type: "sse"`); Gemini CLI documents `url` as SSE and `httpUrl`
+// as streamable HTTP.
+export function mcpServersFrom(
   data: Record<string, unknown>,
   sourceFile: string,
   instanceId: string,
+  bareUrlTransport: "http" | "sse" = "http",
 ): McpServer[] {
   const block = data.mcpServers;
   if (typeof block !== "object" || block === null) return [];
@@ -154,15 +164,24 @@ function mcpServersFrom(
   for (const [name, cfgRaw] of Object.entries(block as Record<string, unknown>)) {
     if (typeof cfgRaw !== "object" || cfgRaw === null) continue;
     const cfg = cfgRaw as Record<string, unknown>;
+    const httpUrl = typeof cfg.httpUrl === "string" ? cfg.httpUrl : null;
     const url = typeof cfg.url === "string" ? cfg.url : null;
     const command = typeof cfg.command === "string" ? cfg.command : null;
     const declaredType = typeof cfg.type === "string" ? cfg.type : null;
     const transport: McpServer["transport"] =
-      declaredType === "sse" ? "sse" : url ? "http" : command ? "stdio" : "unknown";
+      declaredType === "sse"
+        ? "sse"
+        : httpUrl
+          ? "http"
+          : url
+            ? bareUrlTransport
+            : command
+              ? "stdio"
+              : "unknown";
     out.push({
       name: redact(name),
       transport,
-      commandOrUrl: redact(url ?? command ?? ""),
+      commandOrUrl: redact(httpUrl ?? url ?? command ?? ""),
       args: asStringArray(cfg.args).map(redact),
       // SR2: env VALUES are dropped unconditionally — key names only.
       envKeys: typeof cfg.env === "object" && cfg.env !== null ? Object.keys(cfg.env) : [],
@@ -260,6 +279,7 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
     permissionRules: userSettings.flatMap(rulesFrom),
     sandbox: sandboxFrom(userSettings),
     hooks: userSettings.flatMap(hooksFrom),
+    notes: [],
   };
   if (userInstance.configFiles.length > 0) {
     instances.push(userInstance);
@@ -310,6 +330,7 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
       permissionRules: settings.flatMap(rulesFrom),
       sandbox: sandboxFrom(settings),
       hooks: settings.flatMap(hooksFrom),
+      notes: [],
     });
 
     if (mcpJson) {

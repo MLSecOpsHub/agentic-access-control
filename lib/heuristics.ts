@@ -6,7 +6,12 @@ import type { AgentInstance, McpServer, RiskFinding, Severity } from "./schema";
 // global deny → ask → allow evaluation across all settings files, so a deny is
 // never shadowed by an allow. See local/mvp-review-accuracy-analysis.md (F1).
 
-const RISKY_BARE_TOOLS = new Set(["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit"]);
+// Claude Code names, then Gemini CLI names (vendor docs: `tools.allowed` with a
+// bare tool name bypasses confirmation for every invocation of that tool).
+const RISKY_BARE_TOOLS = new Set([
+  "Bash", "Write", "Edit", "MultiEdit", "NotebookEdit",
+  "run_shell_command", "write_file", "replace", "ShellTool",
+]);
 const SECRET_KEY = /(TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL)/i;
 const BYPASS_MODE = /(bypass|yolo|danger|full-access)/i;
 const PIPE_TO_SHELL = /(curl|wget)[^|;]*\|\s*(ba|z)?sh\b/;

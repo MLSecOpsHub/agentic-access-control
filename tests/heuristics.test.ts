@@ -90,3 +90,22 @@ describe("H1/H6 — true source-file attribution", () => {
     expect(findings[0].sourceFile).toBe("/tmp/fixture/project/.claude/settings.json");
   });
 });
+
+describe("H2 — Gemini CLI tool vocabulary", () => {
+  it("flags a bare run_shell_command in tools.allowed as unbounded shell surface", () => {
+    const findings = run({
+      instances: [
+        makeInstance({
+          platform: "gemini-cli",
+          permissionRules: [
+            { effect: "allow", matcher: "run_shell_command", tool: "run_shell_command", sourceFile: "/tmp/g.json", sourceLevel: "user", precedenceRank: 8 },
+            { effect: "allow", matcher: "run_shell_command(git)", tool: "run_shell_command", sourceFile: "/tmp/g.json", sourceLevel: "user", precedenceRank: 8 },
+          ],
+        }),
+      ],
+    });
+    const h2 = findings.filter((f) => f.heuristicId === "H2");
+    expect(h2).toHaveLength(1);
+    expect(h2[0].title).toContain("run_shell_command");
+  });
+});

@@ -49,13 +49,33 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
       </p>
       <SnapshotMeta current={current} />
 
+      {inst.notes.length > 0 ? (
+        <>
+          <h2>Mapping notes</h2>
+          <ul className="notes">
+            {inst.notes.map((n, i) => (
+              <li key={i} className="meta">{n}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
       <h2>Configured permission declarations ({rules.length})</h2>
-      <p className="meta">
-        Declarations merged from all settings tiers, ordered by the documented evaluation
-        semantics: deny → ask → allow, regardless of tier — a deny in any file outranks an allow
-        in any other. These are configured declarations, not proof of enforcement — the
-        platform&apos;s own evaluator is ground truth (SR4: verify against the source file).
-      </p>
+      {inst.platform === "claude-code" ? (
+        <p className="meta">
+          Declarations merged from all settings tiers, ordered by the documented evaluation
+          semantics: deny → ask → allow, regardless of tier — a deny in any file outranks an allow
+          in any other. These are configured declarations, not proof of enforcement — the
+          platform&apos;s own evaluator is ground truth (SR4: verify against the source file).
+        </p>
+      ) : (
+        <p className="meta">
+          Declarations merged from all settings tiers and grouped by effect for display. No
+          cross-tier evaluation order is claimed for this platform — see the mapping notes above.
+          These are configured declarations, not proof of enforcement — the platform&apos;s own
+          evaluator is ground truth (SR4: verify against the source file).
+        </p>
+      )}
       <div className="tablewrap">
         <table>
           <thead>

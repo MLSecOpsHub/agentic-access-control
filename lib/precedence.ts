@@ -1,4 +1,18 @@
-import type { Effect, PermissionRule } from "./schema";
+import type { Effect, PermissionRule, Platform } from "./schema";
+
+// The tool that grants arbitrary shell execution on each platform, by its
+// vendor-documented name. Null = the platform has no per-tool rule vocabulary
+// we collect (scenario atoms that need shell reachability do not apply).
+const SHELL_TOOL: Record<Platform, string | null> = {
+  "claude-code": "Bash",
+  "gemini-cli": "run_shell_command",
+  "codex-cli": null,
+  "generic-mcp": null,
+};
+
+export function shellToolFor(platform: Platform): string | null {
+  return SHELL_TOOL[platform];
+}
 
 export interface ReachabilityResult {
   effect: Effect;

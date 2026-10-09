@@ -63,6 +63,11 @@ export const AgentInstanceSchema = z.object({
   permissionRules: z.array(PermissionRuleSchema),
   sandbox: SandboxConfigSchema.nullable(),
   hooks: z.array(HookSchema),
+  // Platform mapping notes rendered verbatim on the instance page: native
+  // constructs that do not map onto allow/ask/deny rules, inputs the collector
+  // knows exist but does not read, and vendor caveats that change how the
+  // rows above should be read (SR4). Defaults to [] so older snapshots validate.
+  notes: z.array(z.string()).default([]),
 });
 export type AgentInstance = z.infer<typeof AgentInstanceSchema>;
 

@@ -2,7 +2,7 @@
 
 ## Phase 1 — Local-first MVP (this repo, now)
 
-- Claude Code collector (full) + generic MCP collector; Codex CLI and Gemini CLI collectors spec'd and stubbed ([collectors.md](collectors.md) §3–4).
+- Claude Code collector (full), Gemini CLI collector (settings tiers; shipped 2026-10-09) + generic MCP collector; Codex CLI collector spec'd and stubbed ([collectors.md](collectors.md) §3–4).
 - Dashboard: overview, per-instance configured permissions, MCP inventory, findings, drift.
 - SR1–SR5 implemented and tested per [security-architecture.md](security-architecture.md).
 
@@ -10,7 +10,7 @@
 
 ## Phase 1.5 — Hardening & platform completion
 
-- Implement Codex CLI and Gemini CLI collectors against their specs; conformance fixtures per platform version (T5 mitigation).
+- Implement the Codex CLI collector (TOML parser via T10 review); Gemini CLI follow-ups: TOML policy files, `trustedFolders.json`; conformance fixtures per platform version (T5 mitigation).
 - Session-state stores (per-session "always allow" grants) added to collector allowlists where locations are documented.
 - Snapshot signing (age/minisign key) upgrading SR5 from tamper-evident to tamper-resistant against T8.
 - Watch mode: fs-watch on allowlisted config paths → auto-collect on change (still read-only; turns drift into near-real-time).

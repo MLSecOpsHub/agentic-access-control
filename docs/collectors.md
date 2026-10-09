@@ -40,16 +40,42 @@ Collectors are read-only filesystem readers. Shared contract, then one section p
 - One `user`-scope instance from user+managed files.
 - One `project`-scope instance per resolved project root (git root of a scanned directory) containing `.claude/`, `.mcp.json`, or a matching `~/.claude.json` project entry, merging managed+user+project+local (a project instance shows the *full* effective set, not just project-file rules).
 
-## 3. Codex CLI collector (`codex-cli`) — spec'd, stubbed in v1
+## 3. Codex CLI collector (`codex-cli`) — spec'd, stubbed (not yet read)
 
 - Files: `~/.codex/config.toml`; project `requirements.toml` where present.
 - Extract: approval policy (map `untrusted`→`ask`-dominant, `on-failure`/`never` noted on the instance), sandbox mode (`read-only`, `workspace-write`, `danger-full-access` → SandboxConfig + H1 when `danger-full-access`), network access flag and domain allowlist, MCP servers from `mcp_servers` tables.
 - Mapping loss: Codex has no per-rule allow/deny list; we synthesize at most coarse rules from sandbox mode and record the native construct in `notes`.
 
-## 4. Gemini CLI collector (`gemini-cli`) — spec'd, stubbed in v1
+## 4. Gemini CLI collector (`gemini-cli`) — implemented 2026-10-09
 
-- Files: `~/.gemini/settings.json`, `<project>/.gemini/settings.json`.
-- Extract: `coreTools`/`excludeTools` (map to `allow`/`deny` rules), tool auto-accept / YOLO-mode flags (H1), `mcpServers` blocks (same shape as Claude's), trust/`folderTrust` settings.
+Vendor docs verified 2026-10-09 (`docs/reference/configuration.md`, `docs/cli/settings.md`, `docs/cli/trusted-folders.md`, `docs/cli/sandbox.md`, `docs/reference/policy-engine.md` in the `google-gemini/gemini-cli` repo).
+
+### Files read (settings tiers, highest precedence first)
+
+| Level | Path | Notes |
+|---|---|---|
+| `managed` | `/etc/gemini-cli/settings.json` (Linux), `/Library/Application Support/GeminiCli/settings.json` (macOS) | Vendor "system settings" — overrides project and user |
+| `project` | `<scanned dir>/.gemini/settings.json` | Gemini's workspace is the launch directory; no git-root walk-up is documented, so none is done |
+| `user` | `~/.gemini/settings.json` | |
+
+Not read: the system-defaults file (`/etc/gemini-cli/system-defaults.json`, lowest precedence, admin-provided); `~/.gemini/trustedFolders.json`; TOML policy files (`~/.gemini/policies/*.toml`, `/etc/gemini-cli/policies`) — a TOML parser is a new dependency and goes through T10 first. Each is declared on the instance as a mapping note (SR4), not silently missing.
+
+### Mapping (nested v2 keys; legacy flat keys read as fallback when the nested key is absent)
+
+| Gemini setting | AgentLens field | Semantics |
+|---|---|---|
+| `tools.allowed` (legacy `allowedTools`) | `allow` rule | Vendor: "tool names that bypass the confirmation dialog". A bare `run_shell_command` is unbounded shell (H2); `run_shell_command(git)` is a prefix-scoped allow |
+| `tools.exclude` (legacy `excludeTools`) | `deny` rule | Tool removed from discovery |
+| `tools.core` (legacy `coreTools`) | note only | Availability allowlist — **not** an approval grant; listed tools still prompt unless also in `tools.allowed` |
+| `general.defaultApprovalMode` | `defaultMode` | `default` \| `auto_edit` \| `plan`. **YOLO exists only as a CLI flag/env** (`flag` tier) and is invisible to a filesystem collector — stated in the notes |
+| `tools.sandbox` (legacy `sandbox`), `tools.sandboxNetworkAccess` | `SandboxConfig.enabled` + notes, per-field provenance | Boolean, profile string or command; H6 fires only on an explicit `false` |
+| `mcpServers` (top level; `url` = SSE, `httpUrl` = streamable HTTP) | `McpServer[]` | Env **key names only** (SR2); `headers` values never read |
+| `mcp.allowed` / `mcp.excluded` (legacy `allowMCPServers` / `excludeMCPServers`) | `McpServer.enablement` | excluded → `disabled`; when an allow-list exists, listed → `enabled`, unlisted → `disabled`; otherwise `null` (no recorded choice) |
+| per-server `trust: true` | note | Vendor: confirmations bypassed for that server's tools |
+| `hooks` | `Hook[]` | Same `{ <Event>: [ { matcher, hooks: [ { command } ] } ] }` shape as Claude Code; `hooksConfig.enabled: false` noted |
+| `security.folderTrust.enabled` (default true) | note on project instances | When enabled, project settings and MCP servers load only if the folder is trusted — project-tier rows are **conditional** and the UI says so |
+
+**Precedence (SR4):** Gemini documents tier precedence for single values (system > project > user) but no cross-tier allow/deny evaluation order over these lists. `precedenceRank` is therefore effect-first (deny before allow) for *display grouping* only, and the instance page says so instead of claiming vendor semantics. Conformance fixtures: `tests/gemini-collector.test.ts` on the shared fixture machine (which also extends SR1/SR2 coverage to these files).
 
 ## 5. Generic MCP collector (`generic-mcp`) — implemented in v1
 

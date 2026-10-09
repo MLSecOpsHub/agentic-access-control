@@ -7,7 +7,7 @@ import type {
   Severity,
   ThreatScenario,
 } from "./schema";
-import { resolveToolReachability } from "./precedence";
+import { resolveToolReachability, shellToolFor } from "./precedence";
 
 export const SCENARIO_CAVEAT =
   "These are configured declarations composed by AgentLens, not observed enforcement or an observed attack. The platform's own evaluator is ground truth (SR4).";
@@ -64,7 +64,8 @@ const S1: CatalogEntry = {
 
     // Atom C: effective allow Bash (via precedence helper) OR sandbox hole (H6
     // finding — reuse, don't recompute inst.sandbox booleans by hand).
-    const bashReach = resolveToolReachability(inst.permissionRules, "Bash");
+    const shellTool = shellToolFor(inst.platform);
+    const bashReach = shellTool ? resolveToolReachability(inst.permissionRules, shellTool) : null;
     const bashAllows = bashReach?.effect === "allow";
     const h6 = ctx.findings.find(
       (f) => f.heuristicId === "H6" && f.instanceId === inst.id,
@@ -113,10 +114,10 @@ const S1: CatalogEntry = {
       confidence: "declared",
     });
 
-    if (bashAllows) {
+    if (bashAllows && bashReach) {
       preconditions.push({
         kind: "permission-rule",
-        claim: `"${bashReach.rule.matcher}" at ${bashReach.rule.sourceLevel} tier is reachable before any deny for the Bash tool`,
+        claim: `"${bashReach.rule.matcher}" at ${bashReach.rule.sourceLevel} tier is reachable before any deny for the ${shellTool} tool`,
         evidence: `${bashReach.rule.effect} ${bashReach.rule.matcher} (${bashReach.rule.sourceLevel})`,
         sourceFile: bashReach.rule.sourceFile,
         refId: ctx.findings.find(

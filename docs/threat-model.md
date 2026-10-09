@@ -55,6 +55,7 @@ AgentLens is not an agent — it has no model, no tool loop — so most ASI item
 
 ## 5. Review cadence
 
+- 2026-10-09 re-run for the Gemini CLI collector and default project-root discovery: no new boundary (same read-only filesystem reads inside B1; discovery reads a file the Claude Code collector already parsed and performs `lstat` existence checks only). T4 unchanged (symlinked keys skipped, `$HOME`/root excluded). T5 gains a second platform's parse surface — mitigated by the same conformance-fixture discipline; mapping losses are notes on the instance, not silent.
 - Re-run this model when: a new collector lands, any dependency is added, any network capability is proposed (that one is a full re-model — it breaks B4's core assumption), or a platform ships a permission-semantics change (T5 fixture refresh).
 - Standing rule from A4: any PR touching collector code must state in its description how SR1 is preserved.
 - Standing rule from T13: any new scenario-catalog entry ships with a trigger fixture, a near-miss fixture and wording assertions (threat-scenarios §9) — no exceptions for "obvious" scenarios.

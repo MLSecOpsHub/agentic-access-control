@@ -6,7 +6,7 @@ A concise tour of what the proof-of-concept does today and how to exercise every
 
 | Feature | What it does | Where |
 |---|---|---|
-| Agent instance inventory | Discovers agent installs as (platform × scope) instances — Claude Code fully, generic `mcp.json` manifests; Codex/Gemini CLI are spec'd stubs | Overview |
+| Agent instance inventory | Discovers agent installs as (platform × scope) instances — Claude Code and Gemini CLI, plus generic `mcp.json` manifests; Codex CLI is a spec'd stub | Overview |
 | Configured permissions | Merged allow/ask/deny declarations per instance, ordered by the documented evaluation semantics (deny → ask → allow across all tiers), each with source file + settings level (managed/user/project/local) | `/agents/<id>` |
 | MCP server inventory | Every configured server: transport, command/URL, env **key names** (values redacted at collection), declaring file | `/mcp` |
 | Sandbox & hook posture | Sandbox flags (warning-styled when disabled/escapable) and redacted hook command previews | `/agents/<id>` |
@@ -82,7 +82,8 @@ Type-safety check for contributors: `npm run typecheck`.
 
 ## Known PoC limits
 
-- Codex CLI and Gemini CLI collectors are stubs (specs ready in [collectors.md](collectors.md) §3–4) — their configs are not yet read.
+- The Codex CLI collector is a stub (spec in [collectors.md](collectors.md) §3) — its TOML configs are not yet read.
+- Gemini CLI: TOML policy files, `trustedFolders.json` and the system-defaults file are not read; the YOLO flag is invisible to any filesystem collector. Each is stated as a mapping note on the instance.
 - Session-scoped permission grants stored outside settings files are not collected yet.
 - Rendered precedence is an interpretation (SR4) — the platform's own evaluator remains ground truth.
 - Redaction is pattern-based; novel secret formats can slip through (bias is to over-redact).

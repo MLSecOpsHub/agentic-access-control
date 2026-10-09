@@ -28,6 +28,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | `version` | string \| null | Best-effort detected tool version |
 | `scope` | `"user" \| "project"` | |
 | `projectPath` | string \| null | Absolute path when scope = project |
+| `notes` | string[] | Platform mapping notes rendered verbatim on the instance page: native constructs that do not map onto rules, inputs the collector knows exist but does not read, vendor caveats (SR4). Empty for Claude Code; see [collectors.md](collectors.md) §4 for Gemini CLI |
 | `configFiles` | string[] | Every file read to build this instance — the provenance universe |
 | `defaultMode` | string \| null | Platform permission mode if configured (e.g. `plan`, `acceptEdits`, `bypassPermissions`) |
 | `defaultModeSourceFile` | string \| null | File that contributed the winning `defaultMode` (per-field tier merge, Step 5). Null when mode is null or the snapshot predates Step 5 |

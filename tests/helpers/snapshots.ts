@@ -31,6 +31,7 @@ export function makeInstance(overrides: Partial<AgentInstance> = {}): AgentInsta
     permissionRules: [makeRule()],
     sandbox: null,
     hooks: [],
+    notes: [],
     ...overrides,
   };
 }

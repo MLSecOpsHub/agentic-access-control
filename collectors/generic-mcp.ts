@@ -38,6 +38,7 @@ export async function collectGenericMcp(projectRoots: string[]): Promise<Collect
         permissionRules: [],
         sandbox: null,
         hooks: [],
+        notes: [],
       });
 
       for (const [name, cfgRaw] of Object.entries(block)) {

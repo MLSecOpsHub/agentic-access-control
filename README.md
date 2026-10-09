@@ -2,7 +2,7 @@
 
 AgentLens answers one question: **what are the AI agents on this machine currently allowed to do?**
 
-It discovers agent/LLM tooling installed locally (Claude Code, Codex CLI, Gemini CLI, generic MCP configurations), reads their permission-relevant configuration **read-only**, normalizes it into one canonical schema, and renders it in a local dashboard: configured permission declarations with provenance, MCP server inventory, sandbox/hook posture, risk findings, composed threat scenarios, and drift between snapshots.
+It discovers agent/LLM tooling installed locally (Claude Code and Gemini CLI today, plus generic `mcp.json` manifests; Codex CLI is spec'd but not yet read), reads their permission-relevant configuration **read-only**, normalizes it into one canonical schema, and renders it in a local dashboard: configured permission declarations with provenance, MCP server inventory, sandbox/hook posture, risk findings, composed threat scenarios, and drift between snapshots.
 
 ## What it is — and is not
 
