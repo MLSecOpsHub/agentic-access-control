@@ -63,6 +63,7 @@ Rendered permission views show *configured declarations* with provenance — not
 - Persistent banner on every page: interpretation, not enforcement; link to per-platform precedence spec in [collectors.md](collectors.md) with vendor-doc references.
 - Every rule row carries provenance (`sourceFile`, `sourceLevel`) so users can verify against the raw file in one step.
 - Parse-divergence risk is a first-class threat (T5), and known mapping losses (Codex, Gemini) are recorded on the instance, not hidden.
+- Extends to composed output: every threat scenario carries the verbatim caveat and obeys the banned-phrase list of [threat-scenarios.md](threat-scenarios.md) §7, asserted in `tests/scenario-catalog.test.ts` (threat T13).
 - This requirement is the product's answer to the landscape doc's core L2 critique: never let observation cosplay as enforcement.
 
 ### SR5 — Tamper-evident snapshots

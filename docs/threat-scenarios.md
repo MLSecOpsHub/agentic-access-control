@@ -1,6 +1,6 @@
 # AgentLens — Threat Scenario Engine (spec)
 
-Status: **spec, not implemented.** Gated on the Step 6 schema remodel (`status`, `confidence`, `source`, `trust`) per `local/hardening-roadmap.md`; a static v1 subset is possible earlier (§6). This document is the design contract; when implementation diverges, fix one or the other before shipping.
+Status: **v1-static implemented 2026-10-09** — schema (`ThreatScenarioSchema` in `lib/schema.ts`, confidence fields present per §6), engine (`lib/threat-scenarios.ts`), catalog with **S1 and S2** (`lib/scenario-catalog.ts`), precedence-aware reachability predicate (`lib/precedence.ts`), `/threat-model` page and per-instance section, tests (`tests/scenario-catalog.test.ts`). S3–S5, `declared+observed` confidence (Step 6 remodel) and the plugin (§8.3) are **not** implemented. This document is the design contract; when implementation diverges, fix one or the other before shipping.
 
 ## 1. Purpose and positioning
 
@@ -116,8 +116,8 @@ The roadmap parking-lot item, promoted: a plugin whose skill + SessionStart hook
 
 ## 11. Sequencing & acceptance
 
-1. Land ThreatScenario schema (with confidence fields) + engine + S1/S2 + `/threat-model` page + tests. *May precede the full Step 6 remodel per §6 decision.*
-2. S3–S5 + per-instance surface.
+1. ~~Land ThreatScenario schema (with confidence fields) + engine + S1/S2 + `/threat-model` page + tests.~~ **Done 2026-10-09** (preceded the Step 6 remodel per §6 decision; per-instance surface landed with it).
+2. S3–S5.
 3. Step 6 remodel lands → `declared+observed` confidence via the observed store.
 4. Plugin (8.3) last — it is a consumer, and it triggers the T14 threat-model update as a landing condition.
 

@@ -35,6 +35,8 @@ Scope: the AgentLens pipeline (collectors → normalizer → snapshot store → 
 | T9 | Denial of service | Parser bomb: multi-GB JSON, deeply nested structures in a cloned repo | B1 | File-size cap before parse, parse in try/catch → `info` finding | Low |
 | T10 | Elevation | npm dependency compromise (M4) | build | 4 direct runtime/dev deps, committed lockfile, review on bump. Transitive deps (esbuild, sharp, fsevents) carry install scripts | Medium — industry-standard, not solved |
 | T11 | Tampering (A4) | A code path writes to an agent config (bug, not attack) | B1 | SR1 design (no write APIs imported in collector modules), mtime-invariance test in CI | Low |
+| T13 | Repudiation-adjacent (wrong attestation) | **Scenario overclaim**: a composed threat scenario ([threat-scenarios.md](threat-scenarios.md)) reads as *stronger* than its atoms while being epistemically *weaker* — a T5 parse-divergence error in one atom propagates into every scenario built on it, and the user forms a wrong mental model ("an attack is possible") from what is only a conjunction of configured declarations | Normalizer → B3 | Wording contract (threat-scenarios §7) enforced by string assertions in `tests/scenario-catalog.test.ts`; verbatim SR4 caveat on every scenario; reachability predicate reuses the conformance-tested precedence logic rather than reimplementing it; empty state never reads as an all-clear | **Medium and permanent** — same class as T5 and inherits it |
+| T14 | Elevation / Information disclosure | **In-session plugin surface** (threat-scenarios §8.3, *not yet built*): a display-only hook running inside an agent session is inside M2's blast radius — a prompt-injected agent could read its output (A1 fragment) or attempt to alter the hook script | B4 | Plugin reads the newest hash-verified snapshot and prints only; takes no arguments from session content; installation is an explicit user act; hook integrity is the user's `.claude/` trust domain, stated in the plugin README | Medium — recorded now so the landing condition is explicit; re-assess when the plugin is built |
 | T12 | Spoofing / Tampering / DoS | The loopback OTLP receiver (`/api/otel/v1/logs`) is AgentLens's first ingestion listener: any local process running as the user can POST forged events (fake "reject" decisions, flooding), or oversized/malformed payloads | B4 (revised) | POST+JSON only; body cap before parse; event-name and attribute allowlists; identity attributes never read; fixed error codes (no payload echo); dedup; bounded, gitignored storage with retention; UI states that localhost origin is not cryptographic authenticity | Medium — local forgery is inherent to unauthenticated loopback ingestion; acceptable for an observe-only local tool, revisit before any multi-machine mode |
 
 ## 4. OWASP Agentic Top 10 mapping
@@ -44,7 +46,7 @@ AgentLens is not an agent — it has no model, no tool loop — so most ASI item
 | OWASP ASI | Relation |
 |---|---|
 | **ASI03 Identity & Privilege Abuse** | The product's reason to exist: renders privilege sprawl (F2) and over-permissive posture (H1/H2). This is the anchor per the landscape doc. |
-| ASI02 Tool Misuse | MCP inventory (F3) + unpinned-server and secret-env heuristics (H3/H4) give the pre-conditions view |
+| ASI02 Tool Misuse | MCP inventory (F3) + unpinned-server and secret-env heuristics (H3/H4) give the pre-conditions view; threat scenarios S1/S2 compose them into cited paths (each scenario carries its own ASI/STRIDE tags) |
 | ASI05 Insecure Config | The whole surface: bypass modes, disabled sandboxes (H1/H6) |
 | *Applies to AgentLens itself:* | |
 | ASI06 Memory/Context Poisoning analog | T1/T2 — our "context" is untrusted config; handled at B1 |
@@ -55,3 +57,4 @@ AgentLens is not an agent — it has no model, no tool loop — so most ASI item
 
 - Re-run this model when: a new collector lands, any dependency is added, any network capability is proposed (that one is a full re-model — it breaks B4's core assumption), or a platform ships a permission-semantics change (T5 fixture refresh).
 - Standing rule from A4: any PR touching collector code must state in its description how SR1 is preserved.
+- Standing rule from T13: any new scenario-catalog entry ships with a trigger fixture, a near-miss fixture and wording assertions (threat-scenarios §9) — no exceptions for "obvious" scenarios.

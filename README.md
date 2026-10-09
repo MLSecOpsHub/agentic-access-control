@@ -2,7 +2,7 @@
 
 AgentLens answers one question: **what are the AI agents on this machine currently allowed to do?**
 
-It discovers agent/LLM tooling installed locally (Claude Code, Codex CLI, Gemini CLI, generic MCP configurations), reads their permission-relevant configuration **read-only**, normalizes it into one canonical schema, and renders it in a local dashboard: configured permission declarations with provenance, MCP server inventory, sandbox/hook posture, risk findings, and drift between snapshots.
+It discovers agent/LLM tooling installed locally (Claude Code, Codex CLI, Gemini CLI, generic MCP configurations), reads their permission-relevant configuration **read-only**, normalizes it into one canonical schema, and renders it in a local dashboard: configured permission declarations with provenance, MCP server inventory, sandbox/hook posture, risk findings, composed threat scenarios, and drift between snapshots.
 
 ## What it is — and is not
 
@@ -38,7 +38,7 @@ The dashboard renders the newest snapshot in `data/snapshots/`, falling back to 
 | `docs/product-spec.md` | Personas, jobs, MVP features, non-goals, competitive positioning |
 | `docs/security-architecture.md` | Components, trust boundaries, security requirements SR1–SR5 |
 | `docs/threat-model.md` | STRIDE pass mapped to OWASP Agentic Top 10 (ASI03) |
-| `docs/threat-scenarios.md` | **Spec (not implemented)** — threat scenario engine composing collected posture into cited attack-path scenarios |
+| `docs/threat-scenarios.md` | Threat scenario engine — composes collected posture into cited attack-path scenarios (v1: S1/S2 implemented, `/threat-model` page) |
 | `docs/data-model.md` | Canonical schema (mirrored by `lib/schema.ts` zod schemas) |
 | `docs/collectors.md` | Per-platform collector specs: file locations, precedence, risk heuristics |
 | `docs/roadmap.md` | Phase 2 cloud connectors, Phase 3 fleet aggregation, permanent non-goals |

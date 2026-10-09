@@ -11,6 +11,7 @@ A concise tour of what the proof-of-concept does today and how to exercise every
 | MCP server inventory | Every configured server: transport, command/URL, env **key names** (values redacted at collection), declaring file | `/mcp` |
 | Sandbox & hook posture | Sandbox flags (warning-styled when disabled/escapable) and redacted hook command previews | `/agents/<id>` |
 | Risk findings | Heuristics: bypass modes, wildcard allows, `npx -y`/`uvx`-launched servers, credential env keys, disabled sandboxes, pipe-to-shell hooks | `/findings` |
+| Threat scenarios | Composes collected posture into cited attack-path scenarios (v1: S1 supply-chain → exfil, S2 gating collapse); each precondition cites its source file, with OWASP ASI/STRIDE tags and severance hints | `/threat-model`, `/agents/<id>` |
 | Snapshot drift | Rule/server-level diff between the two newest snapshots | Overview banner |
 | Integrity & honesty rails | SHA-256 tamper-evidence per snapshot, snapshot-age display, permanent "interpretation, not enforcement" banner | every page |
 
@@ -40,6 +41,7 @@ Open **http://127.0.0.1:3000**. With no snapshots collected yet, the dashboard r
 2. Click it → **instance detail**: 4 configured permission declarations in evaluation order (denies first) with per-rule source file, an amber (disabled) sandbox card, one hook whose command pipes `curl` to `sh`, and 2 MCP servers.
 3. **MCP servers** — note `github` runs via `npx -y` and lists `GITHUB_PERSONAL_ACCESS_TOKEN` as an env *key* (its value never reached the snapshot).
 4. **Findings** — 8 findings from `critical` (H1 bypass mode) down to `low` (H7 hook), each with post-redaction evidence and provenance.
+5. **Threat scenarios** — the fixture's project instance triggers S1 and S2; expand one to see every precondition with its source file, the OWASP ASI / STRIDE tags, and the severance hint naming which single declaration breaks the path. Note the verbatim caveat: these are configured declarations composed by AgentLens, not an observed attack.
 
 ### 3. Snapshot your real machine
 
@@ -88,9 +90,9 @@ Type-safety check for contributors: `npm run typecheck`.
 ## File map
 
 ```
-app/            dashboard pages (Overview, /agents/[id], /mcp, /findings)
+app/            dashboard pages (Overview, /agents/[id], /mcp, /findings, /threat-model, /live)
 collectors/     read-only collectors + `npm run collect` orchestrator
-lib/            zod schema, redaction, heuristics, hashing, snapshot loader
+lib/            zod schema, redaction, heuristics, scenario catalog + engine, hashing, snapshot loader
 data/fixtures/  bundled sample snapshot (committed)
 data/snapshots/ your machine's snapshots (gitignored)
 docs/           specs, architecture, threat model, this guide
