@@ -14,6 +14,18 @@ export function shellToolFor(platform: Platform): string | null {
   return SHELL_TOOL[platform];
 }
 
+// The tool that writes arbitrary files, by vendor-documented name.
+const WRITE_TOOL: Record<Platform, string | null> = {
+  "claude-code": "Write",
+  "gemini-cli": "write_file",
+  "codex-cli": null,
+  "generic-mcp": null,
+};
+
+export function writeToolFor(platform: Platform): string | null {
+  return WRITE_TOOL[platform];
+}
+
 export interface ReachabilityResult {
   effect: Effect;
   rule: PermissionRule;
