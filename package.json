@@ -2,6 +2,7 @@
   "name": "agentlens",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Read-only permission observatory for local AI agents",
   "scripts": {
     "dev": "NEXT_TELEMETRY_DISABLED=1 next dev -H 127.0.0.1",
