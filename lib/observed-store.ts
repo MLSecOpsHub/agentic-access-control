@@ -6,8 +6,8 @@ import { ObservedEventSchema, type ObservedEvent } from "./observed";
 // data/observed/ is gitignored — behavioral history is at least as sensitive
 // as a configuration snapshot (decision doc §security).
 
-// Resolved per call so the test suite can isolate storage (AGENTLENS_DATA_DIR
-// is a test seam, not a user-facing setting; default remains ./data).
+// Resolved per call. AGENTLENS_DATA_DIR relocates all writable data (set by
+// the `agentlens` CLI, also used by tests to isolate storage); default ./data.
 const obsDir = () =>
   path.join(process.env.AGENTLENS_DATA_DIR ?? path.join(process.cwd(), "data"), "observed");
 const MAX_SEGMENT_BYTES = 10 * 1024 * 1024; // per-day cap; excess events are counted, not stored

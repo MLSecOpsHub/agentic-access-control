@@ -19,7 +19,10 @@ import { PARSE_ISSUE_TEXT, type ParseIssue } from "./util";
 //   ~/.claude.json (where Claude Code has been launched from). Passing explicit
 //   roots disables that discovery.
 
-const OUT_DIR = path.join(process.cwd(), "data", "snapshots");
+const OUT_DIR = path.join(
+  process.env.AGENTLENS_DATA_DIR ?? path.join(process.cwd(), "data"),
+  "snapshots",
+);
 
 function issueFindings(issues: ParseIssue[]): RiskFinding[] {
   return issues.map((issue, i) => ({

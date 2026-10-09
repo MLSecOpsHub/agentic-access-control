@@ -10,7 +10,11 @@ import { verifyRawSnapshotHash } from "./hash";
 // SR5: integrity is checked on the RAW parsed object, before zod validation —
 // zod strips unknown fields, which would otherwise hide appended data (P4).
 
-const snapshotDir = (baseDir: string) => path.join(baseDir, "data", "snapshots");
+// AGENTLENS_DATA_DIR relocates the writable data directory (snapshots +
+// observed events) — set by the `agentlens` CLI so an npx install never
+// writes inside the package; default remains <cwd>/data for a dev clone.
+const dataDir = (baseDir: string) => process.env.AGENTLENS_DATA_DIR ?? path.join(baseDir, "data");
+const snapshotDir = (baseDir: string) => path.join(dataDir(baseDir), "snapshots");
 const fixtureFile = (baseDir: string) => path.join(baseDir, "data", "fixtures", "sample-snapshot.json");
 
 export interface LoadedSnapshot {
