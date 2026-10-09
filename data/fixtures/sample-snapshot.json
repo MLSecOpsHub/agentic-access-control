@@ -2,7 +2,7 @@
   "schemaVersion": "0.1.0",
   "generatedAt": "2026-08-13T02:00:00.000Z",
   "machineId": "f1x7u2e0demo",
-  "hash": "9e06fe758d36b724528311e764192b8ea30adbf5cd572f06e976c26083681f8d",
+  "hash": "95c8080e35f303918209c0d16b7167aca797fc6cdce32bad2c4603e8f960d99a",
   "collectors": [
     "claude-code",
     "generic-mcp",
@@ -172,6 +172,43 @@
       "sandbox": null,
       "hooks": [],
       "defaultModeSourceFile": null
+    },
+    {
+      "id": "gemini-cli:user",
+      "platform": "gemini-cli",
+      "version": null,
+      "scope": "user",
+      "projectPath": null,
+      "configFiles": [
+        "~/.gemini/settings.json"
+      ],
+      "defaultMode": "auto_edit",
+      "defaultModeSourceFile": "~/.gemini/settings.json",
+      "permissionRules": [
+        {
+          "effect": "deny",
+          "matcher": "write_file",
+          "tool": "write_file",
+          "sourceFile": "~/.gemini/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 2
+        },
+        {
+          "effect": "allow",
+          "matcher": "run_shell_command(git)",
+          "tool": "run_shell_command",
+          "sourceFile": "~/.gemini/settings.json",
+          "sourceLevel": "user",
+          "precedenceRank": 8
+        }
+      ],
+      "sandbox": null,
+      "hooks": [],
+      "notes": [
+        "MCP server \"context7\" in ~/.gemini/settings.json declares trust: true — vendor docs: tool-call confirmations are bypassed for this server.",
+        "Folder trust is enabled (vendor default): project-tier settings and MCP servers load only if a folder is trusted. Trust state (~/.gemini/trustedFolders.json) is not collected.",
+        "Gemini CLI has no documented allow/ask/deny evaluation order over these lists; rows are grouped by effect for display (deny = tools.exclude, allow = tools.allowed). TOML policy files (~/.gemini/policies, /etc/gemini-cli/policies) and the YOLO CLI flag are not collected."
+      ]
     }
   ],
   "mcpServers": [
@@ -233,6 +270,20 @@
       "enablement": null,
       "sourceFile": "~/work/payments-service/.cursor/mcp.json",
       "instanceId": "generic-mcp:project:e5f6a7b8"
+    },
+    {
+      "name": "context7",
+      "transport": "stdio",
+      "commandOrUrl": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "envKeys": [],
+      "declaredTools": null,
+      "enablement": null,
+      "sourceFile": "~/.gemini/settings.json",
+      "instanceId": "gemini-cli:user"
     }
   ],
   "findings": [
@@ -307,6 +358,15 @@
       "evidence": "uvx browser-tools-mcp — executes latest upstream on every start",
       "instanceId": "generic-mcp:project:e5f6a7b8",
       "sourceFile": "~/work/payments-service/.cursor/mcp.json"
+    },
+    {
+      "id": "H3:gemini-cli:user:8",
+      "heuristicId": "H3",
+      "severity": "high",
+      "title": "MCP server \"context7\" launched via unpinned package runner",
+      "evidence": "npx -y @upstash/context7-mcp — executes latest upstream on every start",
+      "instanceId": "gemini-cli:user",
+      "sourceFile": "~/.gemini/settings.json"
     }
   ]
 }
