@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
 import { collectClaudeCode } from "@/collectors/claude-code";
+import { resolveToolReachability } from "@/lib/precedence";
 
 // Vendor-conformance fixtures (hardening Step 4): first-party Claude Code
 // semantics encoded as executable expectations, so precedence regressions fail
@@ -105,11 +106,12 @@ describe("permission evaluation order", () => {
       permissions: { allow: ["WebFetch"] },
     });
     const { instances } = await collectClaudeCode([project]);
-    const rules = (instances.find((i) => i.scope === "project")?.permissionRules ?? [])
-      .filter((r) => r.matcher === "WebFetch")
-      .sort((a, b) => a.precedenceRank - b.precedenceRank);
-    expect(rules.length).toBe(2);
-    expect(rules[0].effect).toBe("deny");
+    const rules = instances.find((i) => i.scope === "project")?.permissionRules ?? [];
+    const allWebFetchRules = rules.filter((r) => r.matcher === "WebFetch");
+    expect(allWebFetchRules.length).toBe(2);
+    // Scenario engine reuse: resolveToolReachability must agree with the deny-first semantics
+    const result = resolveToolReachability(allWebFetchRules, "WebFetch");
+    expect(result?.effect).toBe("deny");
   });
 });
 

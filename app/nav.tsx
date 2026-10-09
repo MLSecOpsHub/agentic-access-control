@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Overview" },
   { href: "/mcp", label: "MCP servers" },
   { href: "/findings", label: "Findings" },
+  { href: "/threat-model", label: "Threat scenarios" },
   { href: "/live", label: "Live" },
 ];
 

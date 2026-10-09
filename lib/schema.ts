@@ -99,6 +99,55 @@ export const RiskFindingSchema = z.object({
 });
 export type RiskFinding = z.infer<typeof RiskFindingSchema>;
 
+export const ConfidenceSchema = z.enum(["declared", "observed", "approval-recorded"]);
+export type Confidence = z.infer<typeof ConfidenceSchema>;
+
+export const PreconditionKindSchema = z.enum([
+  "permission-rule",
+  "mcp-server",
+  "sandbox-field",
+  "hook",
+  "mode",
+  "observed-event",
+]);
+export type PreconditionKind = z.infer<typeof PreconditionKindSchema>;
+
+export const PreconditionSchema = z.object({
+  kind: PreconditionKindSchema,
+  claim: z.string(),
+  evidence: z.string(),
+  sourceFile: z.string().nullable(),
+  refId: z.string().nullable(),
+  confidence: ConfidenceSchema,
+});
+export type Precondition = z.infer<typeof PreconditionSchema>;
+
+export const SeveranceHintSchema = z.object({
+  preconditionIndex: z.number(),
+  text: z.string(),
+});
+export type SeveranceHint = z.infer<typeof SeveranceHintSchema>;
+
+export const ScenarioConfidenceSchema = z.enum(["declared", "declared+observed"]);
+export type ScenarioConfidence = z.infer<typeof ScenarioConfidenceSchema>;
+
+export const ThreatScenarioSchema = z.object({
+  id: z.string(),
+  scenarioId: z.string(),
+  title: z.string(),
+  severity: SeveritySchema,
+  confidence: ScenarioConfidenceSchema,
+  preconditions: z.array(PreconditionSchema),
+  categories: z.object({
+    owaspAsi: z.array(z.string()),
+    stride: z.array(z.string()),
+  }),
+  severanceHints: z.array(SeveranceHintSchema),
+  instanceId: z.string(),
+  caveat: z.string(),
+});
+export type ThreatScenario = z.infer<typeof ThreatScenarioSchema>;
+
 export const SnapshotSchema = z.object({
   schemaVersion: z.string(),
   generatedAt: z.string(),

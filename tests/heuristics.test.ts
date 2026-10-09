@@ -1,17 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { runHeuristics } from "@/lib/heuristics";
 import type { AgentInstance } from "@/lib/schema";
-import { makeServer } from "./helpers/snapshots";
+import { makeServer, makeInstance as makeInstanceHelper } from "./helpers/snapshots";
 
 // Hardening Step 5 heuristic fixes: H3 no longer flags pinned package specs
 // with the unpinned claim text (review probe P2), and H1/H6 findings attribute
 // the file that actually contributed the value, not configFiles[0] (F6).
 
+const run = (ctx: Partial<Parameters<typeof runHeuristics>[0]>) =>
+  runHeuristics({ instances: [], mcpServers: [], ...ctx });
+
 function makeInstance(overrides: Partial<AgentInstance> = {}): AgentInstance {
+  const inst = makeInstanceHelper(overrides);
   return {
+    ...inst,
     id: "claude-code:project:deadbeef",
-    platform: "claude-code",
-    version: null,
     scope: "project",
     projectPath: "/tmp/fixture/project",
     configFiles: [
@@ -26,9 +29,6 @@ function makeInstance(overrides: Partial<AgentInstance> = {}): AgentInstance {
     ...overrides,
   };
 }
-
-const run = (ctx: Partial<Parameters<typeof runHeuristics>[0]>) =>
-  runHeuristics({ instances: [], mcpServers: [], ...ctx });
 
 describe("H3 — remote package runners", () => {
   it("unpinned npx -y is high severity with the latest-upstream claim", () => {

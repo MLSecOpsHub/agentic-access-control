@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { SCHEMA_VERSION, type McpServer, type PermissionRule, type Snapshot } from "@/lib/schema";
+import { SCHEMA_VERSION, type AgentInstance, type McpServer, type PermissionRule, type Snapshot } from "@/lib/schema";
 import { snapshotHash } from "@/lib/hash";
 
 // Programmatic snapshot factory for the SR5 and XSS suites: builds fully
@@ -14,6 +14,23 @@ export function makeRule(overrides: Partial<PermissionRule> = {}): PermissionRul
     sourceFile: "/tmp/fixture/.claude/settings.json",
     sourceLevel: "user",
     precedenceRank: 4, // effect-first: deny(0)*5 + user(4)
+    ...overrides,
+  };
+}
+
+export function makeInstance(overrides: Partial<AgentInstance> = {}): AgentInstance {
+  return {
+    id: "claude-code:user",
+    platform: "claude-code",
+    version: null,
+    scope: "user",
+    projectPath: null,
+    configFiles: ["/tmp/fixture/.claude/settings.json"],
+    defaultMode: "acceptEdits",
+    defaultModeSourceFile: "/tmp/fixture/.claude/settings.json",
+    permissionRules: [makeRule()],
+    sandbox: null,
+    hooks: [],
     ...overrides,
   };
 }
@@ -40,21 +57,7 @@ export function makeSnapshot(overrides: Partial<Snapshot> = {}): Snapshot {
     machineId: "fixture000001",
     hash: "",
     collectors: ["claude-code"],
-    instances: [
-      {
-        id: "claude-code:user",
-        platform: "claude-code",
-        version: null,
-        scope: "user",
-        projectPath: null,
-        configFiles: ["/tmp/fixture/.claude/settings.json"],
-        defaultMode: "acceptEdits",
-        defaultModeSourceFile: "/tmp/fixture/.claude/settings.json",
-        permissionRules: [makeRule()],
-        sandbox: null,
-        hooks: [],
-      },
-    ],
+    instances: [makeInstance()],
     mcpServers: [makeServer()],
     findings: [],
     ...overrides,

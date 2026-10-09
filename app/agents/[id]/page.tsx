@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadDashboardData } from "@/lib/snapshot";
+import { runScenarios } from "@/lib/threat-scenarios";
 import { shortPath } from "@/lib/format";
-import { EffectBadge, ModeBadge, SeverityBadge, SnapshotMeta, sortFindings } from "../../components";
+import {
+  EffectBadge,
+  ModeBadge,
+  SeverityBadge,
+  SnapshotMeta,
+  sortFindings,
+  ScenarioList,
+  sortScenarios,
+} from "../../components";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Agent instance" };
@@ -184,6 +193,23 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
       ) : (
         <p className="meta">None for this instance.</p>
       )}
+
+      {(() => {
+        const allScenarios = sortScenarios(
+          runScenarios({ instances: s.instances, mcpServers: s.mcpServers, findings: s.findings }),
+        );
+        const scenarios = allScenarios.filter((sc) => sc.instanceId === inst.id);
+        return (
+          <>
+            <h2>Threat scenarios ({scenarios.length})</h2>
+            {scenarios.length > 0 ? (
+              <ScenarioList scenarios={scenarios} />
+            ) : (
+              <p className="meta">None for this instance.</p>
+            )}
+          </>
+        );
+      })()}
     </main>
   );
 }

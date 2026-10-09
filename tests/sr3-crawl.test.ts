@@ -57,7 +57,7 @@ describe("SR3 — rendered pages load no external resources", () => {
 
   it("crawl finds only same-origin/relative resource URLs", async () => {
     const seen = new Set<string>();
-    const queue = ["/", "/mcp", "/findings", "/live"];
+    const queue = ["/", "/mcp", "/findings", "/threat-model", "/live"];
     const external: string[] = [];
 
     while (queue.length > 0 && seen.size < 15) {

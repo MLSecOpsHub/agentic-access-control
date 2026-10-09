@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Effect, RiskFinding, Severity } from "@/lib/schema";
+import type { Effect, RiskFinding, Severity, ScenarioConfidence, ThreatScenario } from "@/lib/schema";
 import type { LoadedSnapshot } from "@/lib/snapshot";
 import { shortHash, shortPath, timeAgo, isStale } from "@/lib/format";
 
@@ -50,6 +50,75 @@ export const SEVERITY_ORDER: Record<Severity, number> = {
 
 export function sortFindings(findings: RiskFinding[]): RiskFinding[] {
   return [...findings].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+}
+
+export function ConfidenceBadge({ confidence }: { confidence: ScenarioConfidence }) {
+  return <span className="pill">{confidence}</span>;
+}
+
+export function sortScenarios(scenarios: ThreatScenario[]): ThreatScenario[] {
+  return [...scenarios].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+}
+
+export function ScenarioList({ scenarios }: { scenarios: ThreatScenario[] }) {
+  return (
+    <div className="tablewrap">
+      {scenarios.map((s) => (
+        <div key={s.id} className="scenario">
+          <details>
+            <summary>
+              <SeverityBadge severity={s.severity} />
+              <ConfidenceBadge confidence={s.confidence} />
+              <span className="title">{s.title}</span>
+            </summary>
+            <div className="scenario-body">
+              <h4>Preconditions</h4>
+              <ul>
+                {s.preconditions.map((p, i) => (
+                  <li key={i}>
+                    <strong>{p.kind}:</strong> {p.claim}
+                    {p.sourceFile && (
+                      <div className="meta">
+                        Source: <code>{shortPath(p.sourceFile)}</code>
+                      </div>
+                    )}
+                    {p.evidence && (
+                      <div className="meta">
+                        Evidence: <code>{p.evidence}</code>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {s.categories.owaspAsi.length > 0 && (
+                <div>
+                  <strong>OWASP ASI:</strong> {s.categories.owaspAsi.join(", ")}
+                </div>
+              )}
+              {s.categories.stride.length > 0 && (
+                <div>
+                  <strong>STRIDE:</strong> {s.categories.stride.join(", ")}
+                </div>
+              )}
+              {s.severanceHints.length > 0 && (
+                <div>
+                  <strong>Severance hints:</strong>
+                  <ul>
+                    {s.severanceHints.map((h, i) => (
+                      <li key={i}>{h.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="meta">
+                <strong>Caveat:</strong> {s.caveat}
+              </div>
+            </div>
+          </details>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function instanceHref(id: string): string {
