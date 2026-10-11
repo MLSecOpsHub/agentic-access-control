@@ -13,6 +13,7 @@ A concise tour of what the proof-of-concept does today and how to exercise every
 | Risk findings | Heuristics: bypass modes, wildcard allows, `npx -y`/`uvx`-launched servers, credential env keys, disabled sandboxes, pipe-to-shell hooks | `/findings` |
 | Threat scenarios | Composes collected posture into cited attack-path scenarios (v1: S1 supply-chain → exfil, S2 gating collapse); each precondition cites its source file, with OWASP ASI/STRIDE tags and severance hints | `/threat-model`, `/agents/<id>` |
 | Snapshot drift | Rule/server-level diff between the two newest snapshots | Overview banner |
+| Watch mode | `agentlens watch [roots] [--poll sec] [--keep n]` — re-collects on config change, writes only when content changed; pages auto-refresh when `AGENTLENS_AUTO_REFRESH` is set | CLI |
 | Headless check | `agentlens check [roots] --format json\|sarif --fail-on <severity>` — same read-only collection, report on stdout, exit 1 at or above the threshold; SARIF loads into code-scanning UIs | CLI |
 | Share card | Counts-only summary (instances per platform, declarations, servers, findings, scenario ids) with a copy button — no paths, matchers, names or hostnames | `/share` |
 | Integrity & honesty rails | SHA-256 tamper-evidence per snapshot, snapshot-age display, permanent "interpretation, not enforcement" banner | every page |
@@ -91,6 +92,16 @@ echo "exit $?"   # 1 when any finding/scenario is high or critical
 
 The report is built from the same redacted snapshot the dashboard renders and goes to stdout only; `--no-write` skips the snapshot write. The dashboard refuses requests whose `Host` is not loopback (try `curl -H 'Host: evil.example' http://127.0.0.1:3000/` → 403) and sends a nonce-based CSP on every page.
 
+### 7. QA lab & watch (real sessions, no pollution)
+
+```bash
+npm run qa -- lab && npm run qa -- up        # lab projects + dashboard + watch on local/qa-lab/data
+npm run qa -- claude s4-unreviewed-project   # real Claude Code in a recipe; decline the .mcp.json prompt → S4 severs
+npm run qa -- verify                         # deterministic self-check of every recipe
+```
+
+Full guide: [testing-qa-lab.md](testing-qa-lab.md).
+
 Type-safety check for contributors: `npm run typecheck`.
 
 ## Known PoC limits
@@ -105,8 +116,9 @@ Type-safety check for contributors: `npm run typecheck`.
 
 ```
 app/            dashboard pages (Overview, /agents/[id], /mcp, /findings, /threat-model, /share, /live)
-bin/            `agentlens` CLI (scan | collect | serve | check) — the npx entry point
-collectors/     read-only collectors, shared pipeline, `collect` and `check` entry points
+bin/            `agentlens` CLI (scan | collect | serve | check | watch) — the npx entry point
+collectors/     read-only collectors, shared pipeline, `collect`, `check` and `watch` entry points
+scripts/qa*     QA lab generator, recipes, verify and session launchers (`npm run qa`)
 lib/            zod schema, redaction, heuristics, scenario catalog + engine, hashing, snapshot loader, SARIF/JSON report, HTTP hardening
 middleware.ts   loopback-only Host validation + CSP/security headers (T16)
 data/fixtures/  bundled sample snapshot (committed)

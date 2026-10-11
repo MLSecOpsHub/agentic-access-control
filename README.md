@@ -55,6 +55,7 @@ It targets the whitespace the research identifies: individual/prosumer tooling (
 |---|---|
 | `docs/poc-guide.md` | **Start here** — current featureset and step-by-step local test walkthrough |
 | `docs/testing-live-tracking.md` | Testing guide for the `/live` observed-activity feature (synthetic + real-session paths) |
+| `docs/testing-qa-lab.md` | QA lab (`npm run qa -- up`): disposable per-feature projects for real Claude Code sessions, isolated-home verify, and `agentlens watch` |
 | `docs/product-spec.md` | Personas, jobs, MVP features, non-goals, competitive positioning |
 | `docs/security-architecture.md` | Components, trust boundaries, security requirements SR1–SR5 |
 | `docs/threat-model.md` | STRIDE pass mapped to OWASP Agentic Top 10 (ASI03) |
