@@ -50,4 +50,6 @@ Controls shown as a table: `skipDangerousModePermissionPrompt`, `permissions.dis
 - No network: no analytics, no update checks, no remote assets; the dashboard serves loopback `Host` values only.
 - No claim of enforcement: every rule, mode and scenario is a configured declaration. Absence of a finding is absence of a *declared* risk in the files above — nothing more.
 
+**Planned, not built:** a per-session resource trace from vendor hooks the user enables, plus an explicit transcript import ([session-trace.md](session-trace.md)). When it ships, the transcript line above changes to "not read, unless you run `agentlens trace import <file>` on a transcript you name" — and even then only tool-call structure is kept.
+
 Related: [collectors.md](collectors.md) (exact mapping per key), [security-architecture.md](security-architecture.md) (SR1–SR5 and their tests), [threat-scenarios.md](threat-scenarios.md) (how declarations are composed).

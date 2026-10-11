@@ -43,7 +43,8 @@ Prereq before any connector ships: full threat-model re-run — cloud creds and 
 - Heuristic packs as data (user-extensible rules, à la `agent-audit`'s 296 rules). *Partially promoted: the threat-scenario catalog ([threat-scenarios.md](threat-scenarios.md) §4) is the first data-driven rule set; user-extensible packs remain parked.*
 - Export findings as SARIF for code-scanning UIs.
 - ~~Claude Code plugin/hook that surfaces "AgentLens: 2 new findings" inside the agent session~~ **Promoted** into the threat-scenario spec ([threat-scenarios.md](threat-scenarios.md) §8.3) — display only, last in that spec's sequencing.
-- **Threat scenario engine** — spec'd 2026-09-05 in [threat-scenarios.md](threat-scenarios.md); **v1-static (S1/S2) shipped 2026-10-09**. Remaining: S3–S5, `declared+observed` confidence after the Step 6 remodel, display-only plugin (§8.3).
+- **Threat scenario engine** — spec'd 2026-09-05 in [threat-scenarios.md](threat-scenarios.md); S1–S5 shipped. Remaining: `declared+observed` confidence (now scoped by the session-trace spec §13), display-only plugin (§8.3).
+- **Session resource trace** — spec'd 2026-10-11 in [session-trace.md](session-trace.md): per-session record of files written, shell commands, hosts, MCP tools, skills, dependencies and an on-disk window diff, from user-enabled vendor hooks plus an explicit transcript import; observe-only, redaction inside the session process, loopback receiver. Four phases; realises T14 and the Step 6 "configured ∩ used" slice. **Not implemented.**
 
 ## Permanent non-goals
 

@@ -102,7 +102,7 @@ On `/agents/<id>`: scenarios owned by the instance, below findings.
 The one artifact designed to leave the machine, so it is counts-only by contract: instances per platform, declaration totals by effect, MCP totals by transport, findings by severity, scenario ids with counts and top severity, collectors run. **Never** file paths, rule matchers, server names, hostnames or machine ids. `lib/share-card.ts` builds it as a pure function; `tests/share-card.test.ts` asserts every identifying string in the fixture is absent; the SR3 crawl applies the §7 banned-phrase check to the rendered page. Copying is a user-triggered local clipboard action — no network.
 
 ### 8.3 Claude Code plugin (display-only, separate deliverable)
-The roadmap parking-lot item, promoted: a plugin whose skill + SessionStart hook reads the **newest verified snapshot** (hash check before trust — SR5) and prints a one-line summary in-session ("AgentLens: 2 threat scenarios for this project — open /threat-model"). Constraints: read-only (SR1), loopback dashboard link only (SR3), never a PreToolUse gate, degrades silently to nothing when no snapshot exists. It runs *inside* an agent session, i.e. inside M2's blast radius — see T13.
+The roadmap parking-lot item, promoted: a plugin whose skill + SessionStart hook reads the **newest verified snapshot** (hash check before trust — SR5) and prints a one-line summary in-session ("AgentLens: 2 threat scenarios for this project — open /threat-model"). Constraints: read-only (SR1), loopback dashboard link only (SR3), never a PreToolUse gate, degrades silently to nothing when no snapshot exists. It runs *inside* an agent session, i.e. inside M2's blast radius — see T14.
 
 ## 9. Testing (Step 4 style — executable or it doesn't ship)
 
