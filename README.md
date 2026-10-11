@@ -29,7 +29,7 @@ What this is: configured declarations read from local agent config files — not
 Agent instances: 4 (claude-code ×2, gemini-cli ×1, generic-mcp ×1)
 Permission declarations: 11 (5 deny · 1 ask · 5 allow)
 MCP servers: 5 (4 stdio · 1 remote)
-Risk findings: 9 (1 critical · 6 high · 1 medium · 1 low)
+Risk findings: 10 (1 critical · 6 high · 1 medium · 2 low)
 Threat scenarios: 4 (S1-supply-chain-to-exfil ×1 (critical), S2-gating-collapse ×1 (critical), S3-hook-injection-chain ×1 (high), S4-unreviewed-project-takeover ×1 (high))
 ```
 
@@ -61,6 +61,7 @@ It targets the whitespace the research identifies: individual/prosumer tooling (
 | `docs/threat-model.md` | STRIDE pass mapped to OWASP Agentic Top 10 (ASI03) |
 | `docs/threat-scenarios.md` | Threat scenario engine — composes collected posture into cited attack-path scenarios (v1: S1/S2 implemented, `/threat-model` page) |
 | `docs/data-model.md` | Canonical schema (mirrored by `lib/schema.ts` zod schemas) |
+| `docs/what-agentlens-sees.md` | **The honest inventory:** per platform, what is read, what is only stated, what is not read, and what no file can show |
 | `docs/collectors.md` | Per-platform collector specs: file locations, precedence, risk heuristics |
 | `docs/roadmap.md` | Phase 2 cloud connectors, Phase 3 fleet aggregation, permanent non-goals |
 | `docs/research/` | The landscape map (markdown + interactive HTML) this project is grounded in |

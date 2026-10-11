@@ -38,14 +38,14 @@ Or, without cloning (once the package is published): `npx @mlsecopshub/agentlens
 
 Open **http://127.0.0.1:3000**. With no snapshots collected yet, the dashboard renders the bundled **sample fixture** (a deliberately risky demo posture) and says so in a notice.
 
-**Check:** four stat tiles (4 instances, 11 rules, 5 MCP servers, 9 findings); the orange "Read-only interpretation, not enforcement" banner; active page highlighted in the nav.
+**Check:** four stat tiles (4 instances, 11 rules, 5 MCP servers, 10 findings); the orange "Read-only interpretation, not enforcement" banner; active page highlighted in the nav.
 
 ### 2. Tour the fixture
 
 1. **Overview** — the `claude-code · project` instance shows a red `bypassPermissions` mode badge and 7 findings.
 2. Click it → **instance detail**: 4 configured permission declarations in evaluation order (denies first) with per-rule source file, an amber (disabled) sandbox card, one hook whose command pipes `curl` to `sh`, and 2 MCP servers.
 3. **MCP servers** — note `github` runs via `npx -y` and lists `GITHUB_PERSONAL_ACCESS_TOKEN` as an env *key* (its value never reached the snapshot).
-4. **Findings** — 9 findings from `critical` (H1 bypass mode) down to `low` (H7 hook), each with post-redaction evidence and provenance. The `gemini-cli · user` instance contributes an H3 (unpinned `npx -y` server) and shows the per-platform **mapping notes** (trusted server, folder trust, uncollected inputs).
+4. **Findings** — 10 findings from `critical` (H1 bypass mode) down to `low` (H7 hook, H8 reduced-oversight mode), each with post-redaction evidence and provenance. The `gemini-cli · user` instance contributes an H3 (unpinned `npx -y` server) and an H8 (`auto_edit`), and shows the per-platform **mapping notes** (trusted server, folder trust, uncollected inputs).
 5. **Threat scenarios** — the fixture's project instance triggers all four catalog entries (S1 critical, S2 critical, S3 high, S4 high); expand one to see every precondition with its source file, the OWASP ASI / STRIDE tags, and the severance hint naming which single declaration breaks the path. Note the verbatim caveat: these are configured declarations composed by AgentLens, not an observed attack.
 
 ### 3. Snapshot your real machine
@@ -109,7 +109,7 @@ Type-safety check for contributors: `npm run typecheck`.
 - Codex CLI: profile files (`--profile`), `requirements.toml` / managed policies and execution-policy rules are not read; Codex has no per-tool allow/deny list, so its instances carry no permission rows — the notes say so.
 - Gemini CLI: TOML policy files and the system-defaults file are not read; the YOLO flag is invisible to any filesystem collector. Trusted-folder rules are surfaced verbatim. Each gap is stated as a mapping note on the instance.
 - Session-scoped permission grants stored outside settings files are not collected yet.
-- Rendered precedence is an interpretation (SR4) — the platform's own evaluator remains ground truth.
+- Rendered precedence is an interpretation (SR4) — the platform's own evaluator remains ground truth. The complete read / stated / not-read inventory per platform is [what-agentlens-sees.md](what-agentlens-sees.md).
 - Redaction is pattern-based; novel secret formats can slip through (bias is to over-redact).
 
 ## File map

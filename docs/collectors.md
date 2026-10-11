@@ -1,6 +1,6 @@
 # AgentLens — Collector Specifications
 
-Collectors are read-only filesystem readers. Shared contract, then one section per platform, then the risk heuristics.
+Collectors are read-only filesystem readers. Shared contract, then one section per platform, then the risk heuristics. For the reader-facing inventory of what is read, stated or out of reach, see [what-agentlens-sees.md](what-agentlens-sees.md).
 
 ## 1. Shared collector contract
 
@@ -32,10 +32,12 @@ Collectors are read-only filesystem readers. Shared contract, then one section p
 ### Extracted per file
 
 - `permissions.deny` / `permissions.ask` / `permissions.allow` → `PermissionRule[]` (matcher verbatim; `tool` parsed from the `Tool(specifier)` shape).
-- `permissions.defaultMode` (+ its contributing file), `permissions.additionalDirectories`.
-- `sandbox.*` → `SandboxConfig` (`enabled`, `allowUnsandboxedCommands`, network allowlist — per-field tier merge with per-field provenance; note recorded that egress filtering is hostname-only per vendor docs).
+- `permissions.defaultMode` (+ its contributing file) → `defaultMode`, with a **mode-semantics note** quoting the vendor's description of that mode (default/acceptEdits/plan/auto/dontAsk/bypassPermissions; verified 2026-10-11). Vendor caveat applied: `"auto"` set in `.claude/settings.json` or `.claude/settings.local.json` does not take effect — noted, and not counted by H8.
+- `permissions.additionalDirectories` → `additionalDirectories[]` with per-entry provenance (file access outside the project without prompts; S5 treats an entry over home/config paths as a read atom).
+- **Controls** (`controls[]`, highest-precedence file wins, shown as a table): `skipDangerousModePermissionPrompt`, `permissions.disableBypassPermissionsMode`, `permissions.disableAutoMode`, `permissions.blockReadsOutsideWorkingDirectories`, `enableAllProjectMcpServers`, `disableAllHooks`, `allowManagedPermissionRulesOnly`, `allowManagedHooksOnly`, `useAutoModeDuringPlan`, `skipAutoPermissionPrompt`, `autoMode.classifyAllShell`, `sandbox.failIfUnavailable`. Notes state `autoMode` key names (contents not collected), `env` variable **names**, `deniedMcpServers` / `allowedMcpServers` counts, `disableAllHooks` (hooks declared but off) and a bypass default made inert by `disableBypassPermissionsMode`.
+- `sandbox.*` → `SandboxConfig` (`enabled`, `allowUnsandboxedCommands` (boolean; a string value is kept in the notes), `autoAllowBashIfSandboxed` (vendor default true: sandboxed commands run without prompts), `excludedCommands` (run outside the sandbox — H6 low), network allowlist; filesystem/network extra rules are counted in the notes — per-field tier merge with per-field provenance). Vendor facts recorded in the notes: the sandbox covers shell commands only (file tools, MCP servers and hooks run outside it); egress filtering is hostname-only.
 - `hooks` → `Hook[]` (event, matcher, redacted+truncated command).
-- MCP servers from: `<projectRoot>/.mcp.json`, `~/.claude.json` `mcpServers` (user instance) and per-project `projects[<path>].mcpServers` entries (project instance). The project entry's `enabledMcpjsonServers`/`disabledMcpjsonServers` lists set each `.mcp.json` server's `enablement` (`enabled`/`disabled`; disabled wins on conflict; null = no recorded choice — **not** a claim the server is active, SR4).
+- MCP servers from: `<projectRoot>/.mcp.json`, `~/.claude.json` `mcpServers` (user instance) and per-project `projects[<path>].mcpServers` entries (project instance). **Approval (`enablement`) sources, per vendor docs verified 2026-10-11:** the prompt choice recorded in the `~/.claude.json` project entry (`enabledMcpjsonServers` / `disabledMcpjsonServers`), plus the same keys and `enableAllProjectMcpServers` in **any settings file** — except that approvals committed to the project's own `.claude/settings.json` / `settings.local.json` count only once the folder is trusted (`hasTrustDialogAccepted: true`); until then they are stated in a note and ignored, exactly as the vendor does. Rejections always count; `deniedMcpServers` entries matching a server's name, URL or command mark it `disabled` on every instance. Disabled wins on conflict; null = no recorded choice — **not** a claim the server is active (SR4).
 
 ### Instance construction
 
@@ -117,5 +119,8 @@ Also read: `~/.gemini/trustedFolders.json` — the recorded rule for a project f
 | ~~H5~~ | — | **Retired 2026-08-13.** Flagged "deny shadowed by broader allow" — the opposite of documented behavior (deny wins globally). Kept in the schema enum for old snapshots only | See `local/mvp-review-accuracy-analysis.md` F1 |
 | H6 | medium | Sandbox disabled or `allowUnsandboxedCommands: true` where the platform offers sandboxing | Filesystem/network confinement off |
 | H7 | low | Hook command pipes remote content to a shell (`curl … \| sh` shape) | Hook = arbitrary code in the agent loop. *(Spec trimmed in Step 5: the earlier outside-path clause is dropped rather than promised-but-unimplemented; a hook-command path heuristic can return as a new rule if warranted)* |
+| H8 | low | Reduced-oversight mode: Claude Code `auto` (a classifier reviews actions instead of you — the vendor's built-in default for interactive sessions since v2.1.283) or `acceptEdits`; Gemini `auto_edit`; Codex `approval_policy = "never"` without `danger-full-access`. Reported once, on the instance whose own tier set it; Claude Code's `auto` in project files is inert (vendor) and not reported | Prompts are the user's last manual gate; a mode that removes them deserves a line, with the vendor's own wording as evidence — low because it is the documented default |
+| H9 | low | `skipDangerousModePermissionPrompt: true` | Removes the confirmation shown before entering `bypassPermissions` |
+| H6 (variant) | low | Sandbox on but `sandbox.excludedCommands` lists patterns that run outside it | Declared holes in a boundary the user believes is closed |
 
 Each heuristic yields a `RiskFinding` with post-redaction evidence. Heuristics are pure functions over the normalized snapshot — they never re-read disk — so they are testable against fixtures.
