@@ -2,7 +2,9 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import type {
+  AdditionalDirectory,
   AgentInstance,
+  Control,
   Effect,
   Hook,
   McpServer,
@@ -92,30 +94,55 @@ function hooksFrom(sf: SettingsFile): Hook[] {
   return parseHooksBlock(sf.data.hooks, sf.file);
 }
 
+const obj = (v: unknown): Record<string, unknown> | null =>
+  typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+const perms = (d: Record<string, unknown>) => obj(d.permissions) ?? {};
+
 function sandboxFrom(files: SettingsFile[]): SandboxConfig | null {
   // Per-field tier merge (Step 5): each field is taken independently from the
   // highest-precedence file that defines it — `files` arrives sorted by level
   // rank. Provenance per field lands in fieldSources for H6 attribution.
+  // Vendor semantics verified 2026-10-11: the sandbox covers shell commands
+  // only (file tools, MCP servers and hooks run outside it); it is off by
+  // default; autoAllowBashIfSandboxed defaults to true; excludedCommands run
+  // unsandboxed; allowUnsandboxedCommands may be a string or a boolean.
   let found = false;
   let enabled: boolean | null = null;
   let allowUnsandboxedCommands: boolean | null = null;
+  let allowUnsandboxedRaw: string | null = null;
+  let autoAllowBashIfSandboxed: boolean | null = null;
+  let excludedCommands: string[] = [];
   let networkAllowlist: string[] = [];
+  const fsRules: string[] = [];
   const fieldSources: Record<string, string> = {};
 
   for (const sf of files) {
-    const sb = sf.data.sandbox;
-    if (typeof sb !== "object" || sb === null) continue;
+    const s = obj(sf.data.sandbox);
+    if (!s) continue;
     found = true;
-    const s = sb as Record<string, unknown>;
     if (enabled === null && typeof s.enabled === "boolean") {
       enabled = s.enabled;
       fieldSources.enabled = sf.file;
     }
-    if (allowUnsandboxedCommands === null && typeof s.allowUnsandboxedCommands === "boolean") {
-      allowUnsandboxedCommands = s.allowUnsandboxedCommands;
-      fieldSources.allowUnsandboxedCommands = sf.file;
+    if (allowUnsandboxedCommands === null && allowUnsandboxedRaw === null) {
+      if (typeof s.allowUnsandboxedCommands === "boolean") {
+        allowUnsandboxedCommands = s.allowUnsandboxedCommands;
+        fieldSources.allowUnsandboxedCommands = sf.file;
+      } else if (typeof s.allowUnsandboxedCommands === "string") {
+        allowUnsandboxedRaw = redact(s.allowUnsandboxedCommands);
+        fieldSources.allowUnsandboxedCommands = sf.file;
+      }
     }
-    const network = (s.network ?? {}) as Record<string, unknown>;
+    if (autoAllowBashIfSandboxed === null && typeof s.autoAllowBashIfSandboxed === "boolean") {
+      autoAllowBashIfSandboxed = s.autoAllowBashIfSandboxed;
+      fieldSources.autoAllowBashIfSandboxed = sf.file;
+    }
+    const excluded = asStringArray(s.excludedCommands).map(redact);
+    if (!("excludedCommands" in fieldSources) && excluded.length > 0) {
+      excludedCommands = excluded;
+      fieldSources.excludedCommands = sf.file;
+    }
+    const network = obj(s.network) ?? {};
     const allowlist = [
       ...asStringArray(network.allowedDomains),
       ...asStringArray(network.allowedHosts),
@@ -125,16 +152,202 @@ function sandboxFrom(files: SettingsFile[]): SandboxConfig | null {
       networkAllowlist = allowlist;
       fieldSources.networkAllowlist = sf.file;
     }
+    const fsBlock = obj(s.filesystem) ?? {};
+    for (const key of ["denyRead", "allowRead", "allowWrite", "denyWrite"]) {
+      const n = asStringArray(fsBlock[key]).length;
+      if (n > 0) fsRules.push(`${key} ${n}`);
+    }
+    for (const key of ["allowUnixSockets", "allowLocalBinding", "enableWeakerNestedSandbox", "failIfUnavailable"]) {
+      const v = key in network ? network[key] : s[key];
+      if (typeof v === "boolean" || Array.isArray(v)) fsRules.push(`${key}: ${Array.isArray(v) ? `${v.length} entries` : v}`);
+    }
   }
 
   if (!found) return null;
+  const parts = [
+    "Covers shell commands only (vendor): file tools, MCP servers and hooks run outside the sandbox",
+    `autoAllowBashIfSandboxed: ${autoAllowBashIfSandboxed ?? "unset → vendor default true (sandboxed commands run without prompts)"}`,
+    allowUnsandboxedRaw !== null ? `allowUnsandboxedCommands: "${allowUnsandboxedRaw}"` : null,
+    fsRules.length > 0 ? `filesystem/network rules: ${fsRules.join(", ")}` : null,
+    "Egress filtering is hostname-only per vendor docs (TLS-blind; see landscape §1)",
+  ].filter((p): p is string => p !== null);
   return {
     enabled,
     allowUnsandboxedCommands,
     networkAllowlist,
-    notes: "Egress filtering is hostname-only per vendor docs (TLS-blind; see landscape §1)",
+    autoAllowBashIfSandboxed,
+    excludedCommands,
+    notes: parts.join("; "),
     fieldSources,
   };
+}
+
+// Permission-relevant single-value settings beyond rules/mode/sandbox, from
+// the highest-precedence file that defines each (vendor settings reference,
+// verified 2026-10-11). Shown as a table on the instance page; H9 reads it.
+const CONTROL_KEYS: Array<{ key: string; pick: (d: Record<string, unknown>) => unknown }> = [
+  { key: "skipDangerousModePermissionPrompt", pick: (d) => d.skipDangerousModePermissionPrompt },
+  { key: "permissions.disableBypassPermissionsMode", pick: (d) => perms(d).disableBypassPermissionsMode },
+  { key: "permissions.disableAutoMode", pick: (d) => perms(d).disableAutoMode ?? d.disableAutoMode },
+  { key: "permissions.blockReadsOutsideWorkingDirectories", pick: (d) => perms(d).blockReadsOutsideWorkingDirectories },
+  { key: "enableAllProjectMcpServers", pick: (d) => d.enableAllProjectMcpServers },
+  { key: "disableAllHooks", pick: (d) => d.disableAllHooks },
+  { key: "allowManagedPermissionRulesOnly", pick: (d) => d.allowManagedPermissionRulesOnly },
+  { key: "allowManagedHooksOnly", pick: (d) => d.allowManagedHooksOnly },
+  { key: "useAutoModeDuringPlan", pick: (d) => d.useAutoModeDuringPlan },
+  { key: "skipAutoPermissionPrompt", pick: (d) => d.skipAutoPermissionPrompt },
+  { key: "autoMode.classifyAllShell", pick: (d) => obj(d.autoMode)?.classifyAllShell },
+  { key: "sandbox.failIfUnavailable", pick: (d) => obj(d.sandbox)?.failIfUnavailable },
+];
+
+function controlsFrom(files: SettingsFile[]): Control[] {
+  const out: Control[] = [];
+  const seen = new Set<string>();
+  for (const sf of files) {
+    for (const c of CONTROL_KEYS) {
+      if (seen.has(c.key)) continue;
+      const v = c.pick(sf.data);
+      if (typeof v === "boolean" || typeof v === "string") {
+        seen.add(c.key);
+        out.push({ key: c.key, value: redact(String(v)), sourceFile: sf.file });
+      }
+    }
+  }
+  return out;
+}
+
+function additionalDirectoriesFrom(files: SettingsFile[]): AdditionalDirectory[] {
+  return files.flatMap((sf) =>
+    asStringArray(perms(sf.data).additionalDirectories).map((p) => ({ path: redact(p), sourceFile: sf.file })),
+  );
+}
+
+// Vendor wording for each permission mode (permission-modes reference,
+// verified 2026-10-11) so the instance page says what a mode means.
+const MODE_TEXT: Record<string, string> = {
+  default: "default (Manual): reads run without asking; edits, shell commands and network requests prompt.",
+  acceptEdits: "acceptEdits: file edits and common filesystem commands in the working directories run without prompts.",
+  plan: "plan: reads only, plus classifier-approved commands when auto mode is available.",
+  auto: "auto: everything runs, with a background classifier reviewing actions instead of you — the vendor's built-in starting mode for interactive sessions since Claude Code v2.1.283.",
+  dontAsk: "dontAsk: anything that would prompt is denied; pre-approved tools and reads in the working directories still run.",
+  bypassPermissions: "bypassPermissions: skips permission prompts — vendor: isolated containers and VMs only.",
+};
+
+function settingsNotesFrom(
+  files: SettingsFile[],
+  mode: { value: string | null; sourceFile: string | null },
+  projectPath: string | null,
+  sandbox: SandboxConfig | null,
+  additionalDirectories: AdditionalDirectory[],
+): string[] {
+  const notes: string[] = [];
+  if (mode.value && MODE_TEXT[mode.value]) {
+    notes.push(`Mode semantics (vendor docs): ${MODE_TEXT[mode.value]} Source: ${mode.sourceFile}.`);
+  } else if (mode.value) {
+    notes.push(`Mode "${mode.value}" is not in the vendor's documented mode list (2026-10-11) — shown as declared.`);
+  }
+  if (mode.value === "auto" && projectPath && mode.sourceFile?.startsWith(projectPath + path.sep)) {
+    notes.push(
+      `Vendor caveat: "auto" set in .claude/settings.json or .claude/settings.local.json does not take effect — sessions use the built-in default instead of this declaration (${mode.sourceFile}).`,
+    );
+  }
+  const first = <T,>(pick: (d: Record<string, unknown>) => T | null) => {
+    for (const sf of files) {
+      const v = pick(sf.data);
+      if (v !== null) return { value: v, file: sf.file };
+    }
+    return null;
+  };
+  const autoMode = first((d) => obj(d.autoMode));
+  if (autoMode) {
+    notes.push(
+      `autoMode configured in ${autoMode.file} (keys: ${Object.keys(autoMode.value).map(redact).join(", ") || "none"}) — custom classifier allow/deny rules and trusted infrastructure; contents are not collected.`,
+    );
+  }
+  const env = first((d) => obj(d.env));
+  if (env && Object.keys(env.value).length > 0) {
+    const names = Object.keys(env.value).map(redact);
+    notes.push(
+      `env sets ${names.length} environment variable(s) for every session in ${env.file} (names only: ${names.slice(0, 8).join(", ")}${names.length > 8 ? ", …" : ""}).`,
+    );
+  }
+  for (const key of ["deniedMcpServers", "allowedMcpServers"] as const) {
+    const list = first((d) => (Array.isArray(d[key]) ? d[key] : null));
+    if (list) {
+      notes.push(
+        key === "deniedMcpServers"
+          ? `deniedMcpServers (${list.value.length}) in ${list.file} block servers by name, URL or command; exact name/URL/command matches are reflected as enablement = disabled.`
+          : `allowedMcpServers (${list.value.length}) in ${list.file} restrict which servers can be added; not applied to enablement (SR4).`,
+      );
+    }
+  }
+  const noHooks = first((d) => (d.disableAllHooks === true ? true : null));
+  if (noHooks) notes.push(`disableAllHooks: true in ${noHooks.file} — hooks listed for this instance are declared but turned off.`);
+  const disableBypass = first((d) => (perms(d).disableBypassPermissionsMode !== undefined ? String(perms(d).disableBypassPermissionsMode) : null));
+  if (disableBypass && mode.value === "bypassPermissions") {
+    notes.push(`permissions.disableBypassPermissionsMode is set in ${disableBypass.file} — vendor: prevents entering bypassPermissions mode, so the configured bypass default above is inert while that control holds.`);
+  }
+  if (additionalDirectories.length > 0) {
+    notes.push(
+      `permissions.additionalDirectories grants file access outside the project without prompts: ${additionalDirectories.map((d) => d.path).join(", ")} — applies after the folder is trusted (vendor).`,
+    );
+  }
+  if (sandbox && sandbox.enabled !== false && sandbox.excludedCommands.length > 0) {
+    notes.push(`sandbox.excludedCommands lists ${sandbox.excludedCommands.length} pattern(s) that run outside the sandbox (no filesystem limits, no network proxy).`);
+  }
+  return notes;
+}
+
+// Approval sources for project .mcp.json servers (vendor MCP + settings
+// references, verified 2026-10-11): the prompt choice recorded in ~/.claude.json,
+// plus enabledMcpjsonServers / disabledMcpjsonServers / enableAllProjectMcpServers
+// in any settings file — except that approvals committed to the project's own
+// settings are ignored until the folder is trusted. Rejections always count
+// (conservative). deniedMcpServers blocks by name, URL or command.
+interface McpApprovals {
+  enabled: Set<string>;
+  disabled: Set<string>;
+  enableAll: boolean;
+  denied: Array<Record<string, unknown>>;
+  notes: string[];
+}
+
+function mcpApprovalsFrom(files: SettingsFile[], trusted: boolean): McpApprovals {
+  const out: McpApprovals = { enabled: new Set(), disabled: new Set(), enableAll: false, denied: [], notes: [] };
+  let enableAllSeen = false;
+  for (const sf of files) {
+    const approvalsCount = sf.level !== "project" || trusted;
+    for (const n of asStringArray(sf.data.disabledMcpjsonServers)) out.disabled.add(redact(n));
+    const enabled = asStringArray(sf.data.enabledMcpjsonServers);
+    if (enabled.length > 0) {
+      if (approvalsCount) for (const n of enabled) out.enabled.add(redact(n));
+      else out.notes.push(`enabledMcpjsonServers in ${sf.file} is ignored by the vendor until this folder is trusted — not counted as approval.`);
+    }
+    if (!enableAllSeen && typeof sf.data.enableAllProjectMcpServers === "boolean") {
+      if (approvalsCount) {
+        enableAllSeen = true;
+        out.enableAll = sf.data.enableAllProjectMcpServers;
+      } else {
+        out.notes.push(`enableAllProjectMcpServers in ${sf.file} is ignored by the vendor until this folder is trusted — not counted as approval.`);
+      }
+    }
+    if (Array.isArray(sf.data.deniedMcpServers)) {
+      for (const d of sf.data.deniedMcpServers) {
+        const o = obj(d);
+        if (o) out.denied.push(o);
+      }
+    }
+  }
+  return out;
+}
+
+function deniedByPolicy(denied: Array<Record<string, unknown>>, srv: McpServer): boolean {
+  return denied.some(
+    (d) =>
+      (typeof d.serverName === "string" && redact(d.serverName) === srv.name) ||
+      (typeof d.serverUrl === "string" && redact(d.serverUrl) === srv.commandOrUrl) ||
+      (typeof d.serverCommand === "string" && redact(d.serverCommand) === srv.commandOrUrl),
+  );
 }
 
 function defaultModeFrom(files: SettingsFile[]): { value: string | null; sourceFile: string | null } {
@@ -317,6 +530,9 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
   const claudeJson = await readJsonConfig(claudeJsonPath, issues);
 
   const userMode = defaultModeFrom(userSettings);
+  const userSandbox = sandboxFrom(userSettings);
+  const userDirs = additionalDirectoriesFrom(userSettings);
+  const userApprovals = mcpApprovalsFrom(userSettings, true);
   const userInstance: AgentInstance = {
     id: "claude-code:user",
     platform: "claude-code",
@@ -330,14 +546,18 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
     defaultMode: userMode.value,
     defaultModeSourceFile: userMode.sourceFile,
     permissionRules: userSettings.flatMap(rulesFrom),
-    sandbox: sandboxFrom(userSettings),
+    sandbox: userSandbox,
     hooks: userSettings.flatMap(hooksFrom),
-    notes: [],
+    notes: [...settingsNotesFrom(userSettings, userMode, null, userSandbox, userDirs), ...userApprovals.notes],
+    additionalDirectories: userDirs,
+    controls: controlsFrom(userSettings),
   };
   if (userInstance.configFiles.length > 0) {
     instances.push(userInstance);
     if (claudeJson) {
-      mcpServers.push(...mcpServersFrom(claudeJson, claudeJsonPath, userInstance.id));
+      for (const srv of mcpServersFrom(claudeJson, claudeJsonPath, userInstance.id)) {
+        mcpServers.push(deniedByPolicy(userApprovals.denied, srv) ? { ...srv, enablement: "disabled" } : srv);
+      }
     }
   }
 
@@ -376,6 +596,10 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
 
     const id = `claude-code:project:${hash8(abs)}`;
     const mode = defaultModeFrom(settings);
+    const trusted = entries.some((e) => e.hasTrustDialogAccepted === true);
+    const sandbox = sandboxFrom(settings);
+    const dirs = additionalDirectoriesFrom(settings);
+    const approvals = mcpApprovalsFrom(settings, trusted);
     instances.push({
       id,
       platform: "claude-code",
@@ -391,33 +615,41 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
       defaultModeSourceFile: mode.sourceFile,
       // Full effective set (managed+user+local+project), not just project-file rules.
       permissionRules: settings.flatMap(rulesFrom),
-      sandbox: sandboxFrom(settings),
+      sandbox,
       hooks: settings.flatMap(hooksFrom),
-      notes: trustNotesFrom(entries, claudeJsonPath),
+      notes: [
+        ...trustNotesFrom(entries, claudeJsonPath),
+        ...settingsNotesFrom(settings, mode, abs, sandbox, dirs),
+        ...approvals.notes,
+      ],
+      additionalDirectories: dirs,
+      controls: controlsFrom(settings),
     });
 
     if (mcpJson) {
-      // Approval state for .mcp.json-declared servers is recorded in the
-      // matching ~/.claude.json project entry. Disabled wins on conflict
-      // (conservative). Null = no recorded choice — NOT "active" (SR4).
-      const enabledNames = new Set(
-        entries.flatMap((e) => asStringArray(e.enabledMcpjsonServers)).map(redact),
-      );
-      const disabledNames = new Set(
-        entries.flatMap((e) => asStringArray(e.disabledMcpjsonServers)).map(redact),
-      );
+      // Approval state for .mcp.json-declared servers: the prompt choice in
+      // the matching ~/.claude.json project entry, plus settings-file
+      // approvals (trust-gated for the project's own files). Disabled wins
+      // on conflict. Null = no recorded choice — NOT "active" (SR4).
+      for (const e of entries) {
+        for (const n of asStringArray(e.enabledMcpjsonServers)) approvals.enabled.add(redact(n));
+        for (const n of asStringArray(e.disabledMcpjsonServers)) approvals.disabled.add(redact(n));
+      }
       for (const srv of mcpServersFrom(mcpJson, mcpJsonPath, id)) {
-        const enablement = disabledNames.has(srv.name)
-          ? "disabled"
-          : enabledNames.has(srv.name)
-            ? "enabled"
-            : null;
+        const enablement =
+          approvals.disabled.has(srv.name) || deniedByPolicy(approvals.denied, srv)
+            ? "disabled"
+            : approvals.enabled.has(srv.name) || approvals.enableAll
+              ? "enabled"
+              : null;
         mcpServers.push({ ...srv, enablement });
       }
     }
     // Project-scoped MCP servers registered directly in ~/.claude.json.
     for (const entry of entries) {
-      mcpServers.push(...mcpServersFrom(entry, claudeJsonPath, id));
+      for (const srv of mcpServersFrom(entry, claudeJsonPath, id)) {
+        mcpServers.push(deniedByPolicy(approvals.denied, srv) ? { ...srv, enablement: "disabled" } : srv);
+      }
     }
   }
 

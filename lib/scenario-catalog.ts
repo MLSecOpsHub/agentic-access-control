@@ -437,7 +437,13 @@ const S5: CatalogEntry = {
           .filter((r) => r.effect === "allow" && r.tool === readTool && HOME_OR_CONFIG_PATH.test(r.matcher))
           .sort((a, b) => a.precedenceRank - b.precedenceRank || a.matcher.localeCompare(b.matcher))[0] ?? null;
     }
-    if (!rule) return null;
+    // Claude Code: permissions.additionalDirectories grants file access outside
+    // the project without prompts — the same atom, declared differently.
+    const extraDir =
+      !rule && reach?.effect !== "deny"
+        ? [...inst.additionalDirectories].sort((a, b) => a.path.localeCompare(b.path)).find((d) => HOME_OR_CONFIG_PATH.test(d.path)) ?? null
+        : null;
+    if (!rule && !extraDir) return null;
 
     const preconditions: Precondition[] = credServers.slice(0, 2).map((s) => {
       const h4 = h4For(s)!;
@@ -452,17 +458,28 @@ const S5: CatalogEntry = {
         confidence: "declared" as const,
       };
     });
-    preconditions.push({
-      kind: "permission-rule",
-      claim: `"${rule.matcher}" allows ${readTool} over home or config paths and no unbounded deny for ${readTool} outranks it`,
-      evidence: `${rule.effect} ${rule.matcher} (${rule.sourceLevel})`,
-      sourceFile: rule.sourceFile,
-      refId:
-        ctx.findings.find(
-          (f) => f.heuristicId === "H2" && f.instanceId === inst.id && f.sourceFile === rule.sourceFile,
-        )?.id || null,
-      confidence: "declared",
-    });
+    if (rule) {
+      preconditions.push({
+        kind: "permission-rule",
+        claim: `"${rule.matcher}" allows ${readTool} over home or config paths and no unbounded deny for ${readTool} outranks it`,
+        evidence: `${rule.effect} ${rule.matcher} (${rule.sourceLevel})`,
+        sourceFile: rule.sourceFile,
+        refId:
+          ctx.findings.find(
+            (f) => f.heuristicId === "H2" && f.instanceId === inst.id && f.sourceFile === rule.sourceFile,
+          )?.id || null,
+        confidence: "declared",
+      });
+    } else if (extraDir) {
+      preconditions.push({
+        kind: "permission-rule",
+        claim: `permissions.additionalDirectories grants ${readTool} access to "${extraDir.path}" outside the project without approval, and no unbounded deny for ${readTool} outranks it`,
+        evidence: `additionalDirectories: ${extraDir.path}`,
+        sourceFile: extraDir.sourceFile,
+        refId: null,
+        confidence: "declared",
+      });
+    }
     const severanceHints: SeveranceHint[] = preconditions.map((_, i) => ({
       preconditionIndex: i,
       text: `Removing the configuration element at the file above severs this path.`,

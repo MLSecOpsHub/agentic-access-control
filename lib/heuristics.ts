@@ -14,6 +14,22 @@ const RISKY_BARE_TOOLS = new Set([
 ]);
 const SECRET_KEY = /(TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL)/i;
 const BYPASS_MODE = /(bypass|yolo|danger|full-access)/i;
+// Modes that approve actions without asking, short of bypass, with the
+// vendor's own wording (docs verified 2026-10-11). Platform vocabulary differs.
+const REDUCED_OVERSIGHT_MODES: Record<string, Record<string, string>> = {
+  "claude-code": {
+    auto: "auto: a background classifier reviews actions instead of you — the vendor's built-in starting mode for interactive sessions since Claude Code v2.1.283",
+    acceptEdits: "acceptEdits: file edits and common filesystem commands in the working directories run without prompts",
+  },
+  "gemini-cli": {
+    auto_edit: "auto_edit: edit tools are auto-approved (vendor docs)",
+  },
+  "codex-cli": {
+    never: "approval_policy never: no approval prompts — the sandbox is the only remaining gate",
+  },
+};
+const underProject = (file: string | null, projectPath: string | null) =>
+  projectPath !== null && file !== null && file.startsWith(projectPath + "/");
 const PIPE_TO_SHELL = /(curl|wget)[^|;]*\|\s*(ba|z)?sh\b/;
 // A package token carrying an explicit version: name@1.2.3, @scope/name@^1.2,
 // or pip-style name==1.2. False negatives fall through to the unpinned (high)
@@ -55,6 +71,33 @@ export function runHeuristics(ctx: Ctx): RiskFinding[] {
         `defaultMode: ${inst.defaultMode}`, inst.id, inst.defaultModeSourceFile);
     }
 
+    // H8 — reduced-oversight mode (low): reported once, on the instance whose
+    // own tier set it (a project instance inheriting the user tier's mode
+    // would only repeat the user instance's finding). Claude Code ignores
+    // "auto" set in project files (vendor), so that declaration is inert.
+    const reduced = inst.defaultMode ? REDUCED_OVERSIGHT_MODES[inst.platform]?.[inst.defaultMode] : undefined;
+    if (reduced && inst.defaultMode && !BYPASS_MODE.test(inst.defaultMode)) {
+      const ownTier = inst.projectPath === null || underProject(inst.defaultModeSourceFile, inst.projectPath);
+      const inert =
+        inst.platform === "claude-code" && inst.defaultMode === "auto" && underProject(inst.defaultModeSourceFile, inst.projectPath);
+      if (ownTier && !inert) {
+        add("H8", "low", `Reduced-oversight mode configured ("${inst.defaultMode}")`,
+          `defaultMode: ${inst.defaultMode} — ${reduced}`, inst.id, inst.defaultModeSourceFile);
+      }
+    }
+
+    // H9 — the confirmation shown before entering bypassPermissions is skipped.
+    for (const c of inst.controls) {
+      if (c.key === "skipDangerousModePermissionPrompt" && c.value === "true") {
+        const ownTier = inst.projectPath === null || underProject(c.sourceFile, inst.projectPath);
+        if (ownTier) {
+          add("H9", "low", "Bypass-mode confirmation dialog suppressed",
+            "skipDangerousModePermissionPrompt: true — vendor: skips the confirmation dialog before bypassPermissions mode",
+            inst.id, c.sourceFile);
+        }
+      }
+    }
+
     for (const rule of inst.permissionRules) {
       // H2 — wildcard allow on unbounded tool surface.
       if (rule.effect === "allow") {
@@ -80,6 +123,10 @@ export function runHeuristics(ctx: Ctx): RiskFinding[] {
         add("H6", "medium", "Unsandboxed commands allowed",
           "sandbox.allowUnsandboxedCommands: true", inst.id,
           inst.sandbox.fieldSources.allowUnsandboxedCommands ?? null);
+      } else if (inst.sandbox.excludedCommands.length > 0) {
+        add("H6", "low", `Sandbox excludes ${inst.sandbox.excludedCommands.length} command pattern(s)`,
+          `sandbox.excludedCommands: ${inst.sandbox.excludedCommands.join(", ")} — run outside the sandbox (no filesystem limits, no network proxy)`,
+          inst.id, inst.sandbox.fieldSources.excludedCommands ?? null);
       }
     }
 

@@ -79,7 +79,7 @@ describe("H1/H6 — true source-file attribution", () => {
           sandbox: {
             enabled: false,
             allowUnsandboxedCommands: null,
-            networkAllowlist: [],
+            networkAllowlist: [], autoAllowBashIfSandboxed: null, excludedCommands: [],
             notes: null,
             fieldSources: { enabled: "/tmp/fixture/project/.claude/settings.json" },
           },

@@ -90,8 +90,8 @@ describe("Gemini CLI collector", () => {
     expect(user.notes.some((n) => n.includes("TOML policy files"))).toBe(true);
   });
 
-  it("heuristics fire on the Gemini vocabulary: H2 bare run_shell_command, H3 npx -y, H4 env, H6, H7", () => {
+  it("heuristics fire on the Gemini vocabulary: H2 bare run_shell_command, H3 npx -y, H4 env, H6, H7, H8 auto_edit", () => {
     const ids = new Set(runHeuristics(r).map((f) => f.heuristicId));
-    expect([...ids].sort()).toEqual(["H2", "H3", "H4", "H6", "H7"]);
+    expect([...ids].sort()).toEqual(["H2", "H3", "H4", "H6", "H7", "H8"]);
   });
 });

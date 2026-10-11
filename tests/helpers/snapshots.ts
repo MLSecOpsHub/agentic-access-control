@@ -32,6 +32,8 @@ export function makeInstance(overrides: Partial<AgentInstance> = {}): AgentInsta
     sandbox: null,
     hooks: [],
     notes: [],
+    additionalDirectories: [],
+    controls: [],
     ...overrides,
   };
 }

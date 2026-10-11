@@ -31,6 +31,8 @@ const RULES: Record<string, { name: string; description: string; help: string }>
   H5: { name: "retired", description: "Retired heuristic kept for old snapshots", help: "docs/collectors.md#6-risk-heuristics-v1" },
   H6: { name: "sandbox-off", description: "Sandbox disabled or escapable where the platform offers one", help: "docs/collectors.md#6-risk-heuristics-v1" },
   H7: { name: "hook-pipes-remote-to-shell", description: "Hook command pipes remote content to a shell", help: "docs/collectors.md#6-risk-heuristics-v1" },
+  H8: { name: "reduced-oversight-mode", description: "A permission mode that approves actions without asking (classifier-reviewed or auto-accepted edits)", help: "docs/collectors.md#6-risk-heuristics-v1" },
+  H9: { name: "bypass-confirmation-suppressed", description: "The confirmation dialog before bypassPermissions mode is skipped", help: "docs/collectors.md#6-risk-heuristics-v1" },
   PARSE: { name: "config-not-readable", description: "A configuration file could not be fully read (fixed error code, no content echoed)", help: "docs/collectors.md#1-shared-collector-contract" },
   "S1-supply-chain-to-exfil": { name: "scenario-supply-chain-to-exfil", description: "Configured path: unpinned MCP server → shell access → credential env", help: "docs/threat-scenarios.md#5-initial-catalog-v1" },
   "S2-gating-collapse": { name: "scenario-gating-collapse", description: "Configured path: bypassed gating → MCP/hook surface", help: "docs/threat-scenarios.md#5-initial-catalog-v1" },

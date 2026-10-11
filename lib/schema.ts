@@ -28,6 +28,11 @@ export const SandboxConfigSchema = z.object({
   enabled: z.boolean().nullable(),
   allowUnsandboxedCommands: z.boolean().nullable(),
   networkAllowlist: z.array(z.string()),
+  // Claude Code: sandboxed shell commands run without prompts when true
+  // (vendor default true); command patterns in excludedCommands run outside
+  // the sandbox entirely. Defaults keep older snapshots valid.
+  autoAllowBashIfSandboxed: z.boolean().nullable().default(null),
+  excludedCommands: z.array(z.string()).default([]),
   notes: z.string().nullable(),
   // Per-field provenance: field name → settings file that contributed the
   // winning value (per-field tier merge, hardening Step 5). Defaults to {}
@@ -44,6 +49,23 @@ export const HookSchema = z.object({
   sourceFile: z.string(),
 });
 export type Hook = z.infer<typeof HookSchema>;
+
+// A permission-relevant single-value setting that is neither a rule, the
+// mode, nor a sandbox field (e.g. skipDangerousModePermissionPrompt,
+// permissions.disableBypassPermissionsMode, enableAllProjectMcpServers), from
+// the highest-precedence file that defines it. Rendered as a table; H9 reads it.
+export const ControlSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  sourceFile: z.string(),
+});
+export type Control = z.infer<typeof ControlSchema>;
+
+export const AdditionalDirectorySchema = z.object({
+  path: z.string(),
+  sourceFile: z.string(),
+});
+export type AdditionalDirectory = z.infer<typeof AdditionalDirectorySchema>;
 
 export const PlatformSchema = z.enum(["claude-code", "codex-cli", "gemini-cli", "generic-mcp"]);
 export type Platform = z.infer<typeof PlatformSchema>;
@@ -68,6 +90,10 @@ export const AgentInstanceSchema = z.object({
   // knows exist but does not read, and vendor caveats that change how the
   // rows above should be read (SR4). Defaults to [] so older snapshots validate.
   notes: z.array(z.string()).default([]),
+  // Claude Code `permissions.additionalDirectories`: file access granted
+  // outside the project without prompts (S5 reads it). Defaults to [].
+  additionalDirectories: z.array(AdditionalDirectorySchema).default([]),
+  controls: z.array(ControlSchema).default([]),
 });
 export type AgentInstance = z.infer<typeof AgentInstanceSchema>;
 
@@ -95,7 +121,7 @@ export const RiskFindingSchema = z.object({
   id: z.string(),
   // "H5" is retired (asserted the opposite of documented deny-first semantics)
   // but stays in the enum so snapshots collected before its removal still parse.
-  heuristicId: z.enum(["H1", "H2", "H3", "H4", "H5", "H6", "H7", "PARSE"]),
+  heuristicId: z.enum(["H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8", "H9", "PARSE"]),
   severity: SeveritySchema,
   title: z.string(),
   evidence: z.string(),

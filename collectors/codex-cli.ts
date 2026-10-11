@@ -81,6 +81,8 @@ function sandboxFrom(files: SettingsFile[]): SandboxConfig | null {
     enabled: mode.value !== "danger-full-access",
     allowUnsandboxedCommands: null,
     networkAllowlist: [],
+    autoAllowBashIfSandboxed: null,
+    excludedCommands: [],
     notes: [
       `sandbox_mode: ${redact(mode.value)}`,
       `workspace-write network_access: ${typeof network === "boolean" ? network : "unset"}`,
@@ -217,6 +219,8 @@ export async function collectCodexCli(projectRoots: string[]): Promise<Collector
       permissionRules: [],
       sandbox: sandboxFrom(userSettings),
       hooks: [],
+      additionalDirectories: [],
+      controls: [],
       notes: notesFrom(userSettings, "user", { level: null, file: null, projectFile: null }, profiles),
     });
     mcpServers.push(...mcpServersFrom(userData, userFile, id));
@@ -260,6 +264,8 @@ export async function collectCodexCli(projectRoots: string[]): Promise<Collector
       permissionRules: [],
       sandbox: sandboxFrom(effective),
       hooks: [],
+      additionalDirectories: [],
+      controls: [],
       notes: notesFrom(
         level === "trusted" ? effective : [...effective, projectSf],
         "project",

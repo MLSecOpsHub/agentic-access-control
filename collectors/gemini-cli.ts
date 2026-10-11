@@ -121,6 +121,8 @@ function sandboxFrom(files: SettingsFile[]): SandboxConfig | null {
     enabled,
     allowUnsandboxedCommands: null,
     networkAllowlist: [],
+    autoAllowBashIfSandboxed: null,
+    excludedCommands: [],
     notes: parts.join("; "),
     fieldSources,
   };
@@ -251,6 +253,8 @@ export async function collectGeminiCli(projectRoots: string[]): Promise<Collecto
       permissionRules: userSettings.flatMap(rulesFrom),
       sandbox: sandboxFrom(userSettings),
       hooks: userSettings.flatMap((sf) => parseHooksBlock(sf.data.hooks, sf.file)),
+      additionalDirectories: [],
+      controls: [],
       notes: notesFrom(userSettings, "user"),
     });
     const enablement = enablementFor(userSettings);
@@ -291,6 +295,8 @@ export async function collectGeminiCli(projectRoots: string[]): Promise<Collecto
       permissionRules: settings.flatMap(rulesFrom),
       sandbox: sandboxFrom(settings),
       hooks: settings.flatMap((sf) => parseHooksBlock(sf.data.hooks, sf.file)),
+      additionalDirectories: [],
+      controls: [],
       notes: notesFrom(settings, "project", trustRuleNote(trusted, abs, trustedFile)),
     });
     const enablement = enablementFor(settings);

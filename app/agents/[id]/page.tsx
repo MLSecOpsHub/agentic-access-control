@@ -60,6 +60,53 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         </>
       ) : null}
 
+      {inst.controls.length > 0 ? (
+        <>
+          <h2>Controls &amp; flags ({inst.controls.length})</h2>
+          <p className="meta">
+            Permission-relevant single-value settings beyond rules, mode and sandbox — from the
+            highest-precedence file that defines each. Declared values, not proof of effect (SR4).
+          </p>
+          <div className="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Value</th>
+                  <th className="hide-sm">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inst.controls.map((c) => (
+                  <tr key={c.key}>
+                    <td><code>{c.key}</code></td>
+                    <td><code>{c.value}</code></td>
+                    <td className="hide-sm meta"><code>{shortPath(c.sourceFile)}</code></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : null}
+
+      {inst.additionalDirectories.length > 0 ? (
+        <>
+          <h2>Additional directories ({inst.additionalDirectories.length})</h2>
+          <p className="meta">
+            <code>permissions.additionalDirectories</code>: file access granted outside the project
+            without prompts (applies after the folder is trusted — vendor docs).
+          </p>
+          <ul className="notes">
+            {inst.additionalDirectories.map((d, i) => (
+              <li key={i}>
+                <code>{d.path}</code> <span className="meta">· {shortPath(d.sourceFile)}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
       <h2>Configured permission declarations ({rules.length})</h2>
       {inst.platform === "claude-code" ? (
         <p className="meta">

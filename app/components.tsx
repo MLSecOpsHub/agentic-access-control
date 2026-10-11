@@ -25,6 +25,9 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 }
 
 const DANGEROUS_MODE = /(bypass|yolo|danger|full-access)/i;
+// Approves actions without asking, short of bypass (Claude Code auto/acceptEdits,
+// Gemini auto_edit, Codex approval_policy never) — amber, not red.
+const REDUCED_OVERSIGHT_MODE = /^(auto|acceptEdits|auto_edit|never)$/;
 
 /** Permission mode chip — dangerous modes get critical styling, never color alone. */
 export function ModeBadge({ mode }: { mode: string | null }) {
@@ -32,6 +35,14 @@ export function ModeBadge({ mode }: { mode: string | null }) {
   if (DANGEROUS_MODE.test(mode)) {
     return (
       <span className="badge b-critical">
+        <span className="dot" aria-hidden />
+        <code>{mode}</code>
+      </span>
+    );
+  }
+  if (REDUCED_OVERSIGHT_MODE.test(mode)) {
+    return (
+      <span className="badge b-medium" title="Approves actions without asking (see mapping notes)">
         <span className="dot" aria-hidden />
         <code>{mode}</code>
       </span>
