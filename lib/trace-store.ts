@@ -24,7 +24,12 @@ export interface TraceSessionSummary {
   startedAt: string;
   lastAt: string;
   endedAt: string | null;
+  /** Last permission mode any event of the session reported (hook payload `permission_mode`). */
   permissionMode: string | null;
+  /** Distinct modes in order of first appearance; length > 1 means the mode changed mid-session. */
+  permissionModes: string[];
+  /** Number of mode transitions between consecutive mode-bearing events. */
+  permissionModeChanges: number;
   counts: Record<TraceKind, number>;
   confidences: Record<string, number>;
   eventCount: number;
@@ -39,7 +44,7 @@ export function summarizeSessions(events: TraceEvent[]): TraceSessionSummary[] {
     if (!e.sessionId) continue;
     let s = by.get(e.sessionId);
     if (!s) {
-      s = { sessionId: e.sessionId, platform: e.platform, cwd: null, startedAt: e.eventAt, lastAt: e.eventAt, endedAt: null, permissionMode: null, counts: emptyCounts(), confidences: {}, eventCount: 0 };
+      s = { sessionId: e.sessionId, platform: e.platform, cwd: null, startedAt: e.eventAt, lastAt: e.eventAt, endedAt: null, permissionMode: null, permissionModes: [], permissionModeChanges: 0, counts: emptyCounts(), confidences: {}, eventCount: 0 };
       by.set(e.sessionId, s);
     }
     s.eventCount++;
@@ -48,7 +53,12 @@ export function summarizeSessions(events: TraceEvent[]): TraceSessionSummary[] {
     if (e.eventAt < s.startedAt) s.startedAt = e.eventAt;
     if (e.eventAt > s.lastAt) s.lastAt = e.eventAt;
     if (e.cwd && (!s.cwd || e.kind === "session-start")) s.cwd = e.cwd;
-    if (e.kind === "session-start" && typeof e.detail.permissionMode === "string") s.permissionMode = e.detail.permissionMode;
+    if (typeof e.detail.permissionMode === "string" && e.detail.permissionMode.length > 0) {
+      const mode = e.detail.permissionMode;
+      if (s.permissionMode !== null && s.permissionMode !== mode) s.permissionModeChanges++;
+      if (!s.permissionModes.includes(mode)) s.permissionModes.push(mode);
+      s.permissionMode = mode;
+    }
     if (e.kind === "session-end") s.endedAt = e.eventAt;
   }
   return [...by.values()].sort((a, b) => b.lastAt.localeCompare(a.lastAt));

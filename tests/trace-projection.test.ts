@@ -56,7 +56,7 @@ describe("hook payload projection", () => {
     const mcp = projectHookPayload({ ...common, hook_event_name: "PostToolUse", tool_name: "mcp__github__create_issue", tool_input: { title: "secret title", body: SECRETS.slack } })!;
     expect(mcp.kind).toBe("mcp-call");
     expect(mcp.resource).toBe("github/create_issue");
-    expect(mcp.detail).toEqual({ server: "github", tool: "create_issue" });
+    expect(mcp.detail).toEqual({ server: "github", tool: "create_issue", permissionMode: "auto" });
     expect(text(mcp)).not.toContain("secret title");
     const skill = projectHookPayload({ ...common, hook_event_name: "PostToolUse", tool_name: "Skill", tool_input: { skill: "deploy", args: "prod now" } })!;
     expect(skill.kind).toBe("skill");
@@ -100,6 +100,18 @@ describe("hook payload projection", () => {
     const dir = projectHookPayload({ ...common, hook_event_name: "DirectoryAdded", directory: "/srv/data", source: "slash_command" })!;
     expect(dir.kind).toBe("scope-change");
     expect(dir.resource).toBe("/srv/data");
+  });
+
+  it("records the permission mode in force on every event, not only session start/end", () => {
+    const bash = projectHookPayload({ ...common, hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "ls" }, tool_response: { exit_code: 0 } })!;
+    expect(bash.detail.permissionMode).toBe("auto");
+    const denied = projectHookPayload({ ...common, hook_event_name: "PermissionDenied", tool_name: "Bash", tool_input: { command: "ls" }, reason: "x" })!;
+    expect(denied.detail.permissionMode).toBe("auto");
+    const sub = projectHookPayload({ ...common, hook_event_name: "SubagentStart", agent_type: "Explore", permission_mode: "plan" })!;
+    expect(sub.detail.permissionMode).toBe("plan");
+    // The vendor omits the field on some lifecycle payloads (SessionStart): nothing is invented.
+    const noMode = projectHookPayload({ ...common, permission_mode: undefined, hook_event_name: "SessionStart", source: "startup" })!;
+    expect(noMode.detail).not.toHaveProperty("permissionMode");
   });
 
   it("Gemini AfterTool maps by tool name; helpers behave", () => {

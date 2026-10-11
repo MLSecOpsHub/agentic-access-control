@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { toTraceEvent, type TraceEvent } from "@/lib/trace";
 import { deriveFromShell } from "@/lib/trace-derive";
 import { traceFindings, type DeclaredContext } from "@/lib/trace-heuristics";
-import { renderTraceText, summarizeResources } from "@/lib/trace-render";
+import { columnSummaries, joinShort, modeLabel, renderTraceText, summarizeResources } from "@/lib/trace-render";
 import { summarizeSessions } from "@/lib/trace-store";
 import { SCENARIO_BANNED_PHRASES } from "@/lib/scenario-catalog";
 import { runHeuristics } from "@/lib/heuristics";
@@ -69,6 +69,37 @@ describe("observed findings O1–O5", () => {
     expect(text).toContain("O1");
     expect(text).toContain("└ dependency");
     for (const phrase of SCENARIO_BANNED_PHRASES) expect(text.toLowerCase()).not.toContain(phrase);
+  });
+
+  it("mode is the last one any event reported; changes are counted and rendered", () => {
+    const events: TraceEvent[] = [
+      ev({ kind: "session-start", toolUseId: null, resource: CWD, detail: { source: "startup" } }), // vendor SessionStart carries no mode
+      ev({ kind: "shell", toolName: "Bash", resource: "git status", detail: { exitCode: 0, permissionMode: "default" } }),
+      ev({ kind: "file-write", toolName: "Write", resource: "src/a.ts", detail: { permissionMode: "default" } }),
+      ev({ kind: "shell", toolName: "Bash", resource: "sudo true", detail: { exitCode: 0, permissionMode: "auto" } }),
+      ev({ kind: "session-end", toolUseId: null, resource: CWD, detail: { reason: "other" } }),
+    ];
+    const summary = summarizeSessions(events)[0];
+    expect(summary.permissionMode).toBe("auto");
+    expect(summary.permissionModes).toEqual(["default", "auto"]);
+    expect(summary.permissionModeChanges).toBe(1);
+    expect(modeLabel(summary)).toBe("default → auto");
+    const findings = traceFindings("sess-h", events, null);
+    const resources = summarizeResources(events, null);
+    const text = renderTraceText(summary, events, resources, findings);
+    expect(text).toContain("mode default → auto (changed 1×)");
+    expect(text).toContain("shell by class: vcs 1 · privileged 1");
+    expect(text).toMatch(/sudo true.*O6/);
+    const cols = columnSummaries(summary, resources, findings);
+    expect(cols.shell).toEqual({ n: 2, sub: "vcs ×1 · privileged ×1" });
+    expect(cols.writes).toEqual({ n: 1, sub: "src/a.ts", flagged: false });
+    expect(cols.findings).toEqual({ n: 1, sub: "O6 ×1", flagged: true });
+    expect(cols.disk).toEqual({ n: 0, sub: "no delta recorded" });
+    const noMode = summarizeSessions([events[0]])[0];
+    expect(noMode.permissionMode).toBeNull();
+    expect(modeLabel(noMode)).toBeNull();
+    expect(columnSummaries(noMode, summarizeResources([events[0]], null), []).disk).toEqual({ n: "pending", sub: "computed at session end" });
+    expect(joinShort(["a.ts", "b.ts", "c.ts", "d.ts"], 12)).toBe("a.ts · b.ts +2 more");
   });
 
   it("without a declared snapshot the joins are off but findings that need none still fire", () => {

@@ -7,10 +7,10 @@ import { stripUrl } from "./trace-project.mjs";
 // command string. Confidence "derived" — the command was declared; whether it
 // ran as parsed is not observed (docs/session-trace.md §7).
 
-const URL_RE = /https?:\/\/[^\s'"`<>|;)]+/g;
-const MANAGER_RE = /^(?:sudo\s+)?(npm|pnpm|yarn|bun|pip3?|uv|uvx|npx|cargo|go|gem|brew|apt-get|apt)\s+(.*)$/;
+export const URL_RE = /https?:\/\/[^\s'"`<>|;)]+/g;
+export const MANAGER_RE = /^(?:sudo\s+)?(npm|pnpm|yarn|bun|pip3?|uv|uvx|npx|cargo|go|gem|brew|apt-get|apt)\s+(.*)$/;
 
-function specsFrom(manager: string, rest: string): string[] {
+export function specsFrom(manager: string, rest: string): string[] {
   const words = rest.trim().split(/\s+/);
   const positional = (from: number) => words.slice(from).filter((w) => w && !w.startsWith("-"));
   const verb = words[0] ?? "";

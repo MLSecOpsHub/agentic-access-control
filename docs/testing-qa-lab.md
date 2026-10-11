@@ -84,3 +84,17 @@ The user tier of the isolated home is itself finding-free and asserted so (`clau
 | a recipe shows your own rules/servers | live mode merges your real user tier; use `--isolated` or compare with `verify` |
 | `claude` opened in the recipe sees no `.mcp.json` prompt | the project path already has a recorded decision in your real `~/.claude.json` |
 | dashboard shows the bundled fixture | the lab data dir has no snapshot yet — run `qa collect` or wait for watch's first tick |
+
+## Session trace — what to look for on `/sessions`
+
+With the dashboard running (`AGENTLENS_AUTO_REFRESH=5 npm run dev`) and a traced session open (`npm run qa -- claude drift-playground`, or `claude --settings "$(npm run -s trace -- hook-settings)"` anywhere):
+
+| Do this in the traced session | Expect on `/sessions` (within one refresh) |
+|---|---|
+| Run `rm -rf node_modules` or `git status` | Shell count rises; the line under it reads `fs-destructive ×1` / `vcs ×1`; **no** O6 — in-tree deletes and VCS reads are facets only |
+| Run `sudo true` or `chmod 777 /tmp/x` | Observed findings gains `O6 ×1` (bold = high when the exit code was 0 under `sudo`); the session page's "Shell commands by class" shows the command under `privileged` with its exit code and an `O6` tag |
+| Press Shift+Tab, then run any command | Mode cell shows `default → auto` (or the modes you cycled) with `changed ×n`; the session page header lists the transition time and the timeline gains a Mode column |
+| Write a file | Writes count links to `#files`; the sub-line names the path, `⚠ agent config` when it is a settings file (O1 fires too) |
+| Exit the session | Disk flips from `pending` to the `+a ~m ·t -r` delta — only if the recipe directory is a scanned root (`AGENTLENS_TRACE_ROOTS` or a project already in a snapshot) |
+
+Mode `—` means no event of that session carried a `permission_mode`: the vendor omits it on `SessionStart`, and events recorded before 2026-10-12 did not store it on tool events. Column meanings live in the collapsible "What the columns mean" legend on the page and in [session-trace.md](session-trace.md) §10.

@@ -2,13 +2,14 @@ import type { AgentInstance, McpServer, RiskFinding, Severity } from "./schema";
 import type { TraceEvent } from "./trace";
 import { PIPE_TO_SHELL } from "./heuristics";
 import { HOME_OR_CONFIG_PATH } from "./scenario-catalog";
+import { classifyEvent, type Promotion } from "./shell-classes";
 
 // Observed findings over a session trace (docs/session-trace.md §12). A
 // separate type from RiskFinding on purpose: these describe invocations and
 // file-state deltas in ONE session, never enter snapshots or `check`, and
 // never claim which rule permitted anything (SR4).
 
-export type TraceRuleId = "O1" | "O2" | "O3" | "O4" | "O5";
+export type TraceRuleId = "O1" | "O2" | "O3" | "O4" | "O5" | "O6";
 
 export interface TraceFinding {
   id: string;
@@ -66,6 +67,7 @@ export function traceFindings(sessionId: string, events: TraceEvent[], declared:
   const inst = declared ? instanceForCwd(cwd, declared.instances, platform) : null;
   const scratch = typeof start?.detail.transcriptPath === "string" ? null : null; // scratchpad_dir is not projected in v1
   const allowedOutside = new Set<string>([...(inst?.additionalDirectories.map((d) => d.path) ?? []), ...(scratch ? [scratch] : [])]);
+  const underAllowed = (p: string) => [...allowedOutside].some((d) => p === d || p.startsWith(d.replace(/\/$/, "") + "/"));
 
   // O1 — agent configuration touched during the session
   for (const e of events) {
@@ -117,9 +119,29 @@ export function traceFindings(sessionId: string, events: TraceEvent[], declared:
   for (const e of events) {
     if (e.kind !== "file-write") continue;
     const outside = e.resource.startsWith("/") || e.resource.startsWith("~");
-    const allowed = [...allowedOutside].some((d) => e.resource === d || e.resource.startsWith(d.replace(/\/$/, "") + "/"));
-    if ((outside || HOME_OR_CONFIG_PATH.test(e.resource)) && !allowed && !isAgentConfigPath(e.resource)) {
+    if ((outside || HOME_OR_CONFIG_PATH.test(e.resource)) && !underAllowed(e.resource) && !isAgentConfigPath(e.resource)) {
       add("O5", "medium", `A write targeted a path outside the session's working directory: ${e.resource}`, `${e.toolName ?? "write"} · ${e.outcome}`, [e.eventId]);
+    }
+  }
+  // O6 — destructive or privileged shell command: the promotion subset of the
+  // shell classifier (lib/shell-classes.ts), one finding per command segment.
+  // Severity reads the exit code only: "high" needs exit 0 AND an elevated,
+  // out-of-tree, credential-path, device or remote-shell/upload shape.
+  for (const e of events) {
+    if (e.kind !== "shell") continue;
+    for (const seg of classifyEvent(e).segments) {
+      const promos = seg.promotions.filter((p) => !(p.pattern.endsWith("-outside") && p.target && underAllowed(p.target)));
+      if (promos.length === 0) continue;
+      const rank = (p: Promotion) => (p.pattern === "sudo-wrapper" ? 1 : 0);
+      const ordered = [...promos].sort((a, b) => rank(a) - rank(b));
+      const exit = typeof e.detail.exitCode === "number" ? e.detail.exitCode : null;
+      const strong = seg.elevated || ordered.some((p) => p.strong);
+      const severity: Severity = exit === 0 && strong ? "high" : "medium";
+      const segText = seg.text.length > 120 ? seg.text.slice(0, 119) + "…" : seg.text;
+      const notes = [...new Set(ordered.map((p) => p.note).filter((n): n is string => typeof n === "string"))];
+      add("O6", severity,
+        `A shell command in this session declared a ${ordered[0].kind} operation: ${segText} (parsed from the command string; exit code ${exit ?? "not reported"})`,
+        [ordered.map((p) => p.pattern).join(", "), seg.text, `exit code ${exit ?? "not reported"}`, ...notes].join(" · "), [e.eventId]);
     }
   }
   return out;

@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
+import { MODE_TEXT } from "../lib/mode-text";
 import type {
   AdditionalDirectory,
   AgentInstance,
@@ -223,16 +224,6 @@ function additionalDirectoriesFrom(files: SettingsFile[]): AdditionalDirectory[]
   );
 }
 
-// Vendor wording for each permission mode (permission-modes reference,
-// verified 2026-10-11) so the instance page says what a mode means.
-const MODE_TEXT: Record<string, string> = {
-  default: "default (Manual): reads run without asking; edits, shell commands and network requests prompt.",
-  acceptEdits: "acceptEdits: file edits and common filesystem commands in the working directories run without prompts.",
-  plan: "plan: reads only, plus classifier-approved commands when auto mode is available.",
-  auto: "auto: everything runs, with a background classifier reviewing actions instead of you — the vendor's built-in starting mode for interactive sessions since Claude Code v2.1.283.",
-  dontAsk: "dontAsk: anything that would prompt is denied; pre-approved tools and reads in the working directories still run.",
-  bypassPermissions: "bypassPermissions: skips permission prompts — vendor: isolated containers and VMs only.",
-};
 
 function settingsNotesFrom(
   files: SettingsFile[],

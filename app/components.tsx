@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Effect, RiskFinding, Severity, ScenarioConfidence, ThreatScenario } from "@/lib/schema";
 import type { LoadedSnapshot } from "@/lib/snapshot";
 import { shortHash, shortPath, timeAgo, isStale } from "@/lib/format";
+import { modeText } from "@/lib/mode-text";
 
 // Shared server-side presentational pieces. All content renders through React
 // escaping — config strings are untrusted (boundary B1); no raw HTML anywhere.
@@ -29,12 +30,14 @@ const DANGEROUS_MODE = /(bypass|yolo|danger|full-access)/i;
 // Gemini auto_edit, Codex approval_policy never) — amber, not red.
 const REDUCED_OVERSIGHT_MODE = /^(auto|acceptEdits|auto_edit|never)$/;
 
-/** Permission mode chip — dangerous modes get critical styling, never color alone. */
-export function ModeBadge({ mode }: { mode: string | null }) {
+/** Permission mode chip — dangerous modes get critical styling, never color alone.
+ *  The tooltip is the vendor's one-line meaning (lib/mode-text.ts). */
+export function ModeBadge({ mode, title }: { mode: string | null; title?: string }) {
   if (!mode) return <span className="meta">default</span>;
+  const tip = title ?? modeText(mode);
   if (DANGEROUS_MODE.test(mode)) {
     return (
-      <span className="badge b-critical">
+      <span className="badge b-critical" title={tip}>
         <span className="dot" aria-hidden />
         <code>{mode}</code>
       </span>
@@ -42,13 +45,13 @@ export function ModeBadge({ mode }: { mode: string | null }) {
   }
   if (REDUCED_OVERSIGHT_MODE.test(mode)) {
     return (
-      <span className="badge b-medium" title="Approves actions without asking (see mapping notes)">
+      <span className="badge b-medium" title={tip}>
         <span className="dot" aria-hidden />
         <code>{mode}</code>
       </span>
     );
   }
-  return <code>{mode}</code>;
+  return <code title={tip}>{mode}</code>;
 }
 
 export const SEVERITY_ORDER: Record<Severity, number> = {
