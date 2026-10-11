@@ -1,6 +1,6 @@
 # AgentLens — Session Resource Trace (spec)
 
-Status: **spec, not implemented** (2026-10-11). Design contract for the next iteration; when implementation diverges, fix one or the other before shipping. Companion to [threat-scenarios.md](threat-scenarios.md) (declared side), [testing-live-tracking.md](testing-live-tracking.md) (today's `/live`), and [what-agentlens-sees.md](what-agentlens-sees.md) (the privacy inventory this feature revises).
+Status: **implemented 2026-10-12** (Phases 1–4: hook + receiver + store, `/sessions` pages with observed findings O1–O5, root-gated on-disk window diff, transcript import, declared skills surface, S1/S4 `declared+observed` upgrade). Gemini `AfterTool` is mapped best-effort in the projection but has no launcher yet. This document is the design contract; when implementation diverges, fix one or the other before shipping. Companion to [threat-scenarios.md](threat-scenarios.md) (declared side), [testing-live-tracking.md](testing-live-tracking.md) (today's `/live`), and [what-agentlens-sees.md](what-agentlens-sees.md) (the privacy inventory this feature revises).
 
 ## 1. Purpose and positioning
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadDashboardData } from "@/lib/snapshot";
 import { runScenarios } from "@/lib/threat-scenarios";
+import { loadObservedUsage } from "@/lib/trace-observed";
 import { shortPath } from "@/lib/format";
 import {
   EffectBadge,
@@ -31,6 +32,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
     (a, b) => a.precedenceRank - b.precedenceRank || a.matcher.localeCompare(b.matcher),
   );
   const servers = s.mcpServers.filter((m) => m.instanceId === inst.id);
+  const observed = current.isFixture ? undefined : await loadObservedUsage();
   const findings = sortFindings(s.findings.filter((f) => f.instanceId === inst.id));
 
   return (
@@ -263,7 +265,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
 
       {(() => {
         const allScenarios = sortScenarios(
-          runScenarios({ instances: s.instances, mcpServers: s.mcpServers, findings: s.findings }),
+          runScenarios({ instances: s.instances, mcpServers: s.mcpServers, findings: s.findings, observed }),
         );
         const scenarios = allScenarios.filter((sc) => sc.instanceId === inst.id);
         return (

@@ -44,7 +44,7 @@ Prereq before any connector ships: full threat-model re-run — cloud creds and 
 - Export findings as SARIF for code-scanning UIs.
 - ~~Claude Code plugin/hook that surfaces "AgentLens: 2 new findings" inside the agent session~~ **Promoted** into the threat-scenario spec ([threat-scenarios.md](threat-scenarios.md) §8.3) — display only, last in that spec's sequencing.
 - **Threat scenario engine** — spec'd 2026-09-05 in [threat-scenarios.md](threat-scenarios.md); S1–S5 shipped. Remaining: `declared+observed` confidence (now scoped by the session-trace spec §13), display-only plugin (§8.3).
-- **Session resource trace** — spec'd 2026-10-11 in [session-trace.md](session-trace.md): per-session record of files written, shell commands, hosts, MCP tools, skills, dependencies and an on-disk window diff, from user-enabled vendor hooks plus an explicit transcript import; observe-only, redaction inside the session process, loopback receiver. Four phases; realises T14 and the Step 6 "configured ∩ used" slice. **Not implemented.**
+- **Session resource trace** — spec'd 2026-10-11, **shipped 2026-10-12** ([session-trace.md](session-trace.md)): `/sessions`, observed findings O1–O5, on-disk window diff, `agentlens trace print|import|close`, `agentlens hook-settings`, S1/S4 `declared+observed`. Remaining: Gemini/Codex launchers, the "allowed but never used" view.
 
 ## Permanent non-goals
 

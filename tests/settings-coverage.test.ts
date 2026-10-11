@@ -6,6 +6,7 @@ import { collectClaudeCode } from "@/collectors/claude-code";
 import { runHeuristics } from "@/lib/heuristics";
 import { runScenarios } from "@/lib/threat-scenarios";
 import { makeInstance, makeServer } from "./helpers/snapshots";
+import { SECRETS } from "./helpers/machine";
 
 // Claude Code settings coverage (vendor settings/permission-modes/MCP
 // references verified 2026-10-11): controls, additional directories, sandbox
@@ -208,6 +209,27 @@ describe("modes: semantics notes and H8/H9", () => {
     expect(ids).toContain("H1");
     expect(ids).not.toContain("H8");
     expect(userInst(r).notes.some((n) => n.includes("disableBypassPermissionsMode") && n.includes("inert"))).toBe(true);
+  });
+});
+
+describe("declared skills and plugins (names only)", () => {
+  it("collects enabledPlugins keys and SKILL.md directory names, never contents", async () => {
+    await reset();
+    await write("home/.claude/settings.json", { enabledPlugins: { "vercel@claude-plugins-official": true, "seo@community": false } });
+    await fs.mkdir(path.join(home, ".claude", "skills", "deploy"), { recursive: true });
+    await fs.writeFile(path.join(home, ".claude", "skills", "deploy", "SKILL.md"), `# deploy\nsecret: ${SECRETS.openai}`);
+    await fs.mkdir(path.join(home, ".claude", "skills", "not-a-skill"), { recursive: true });
+    await fs.mkdir(path.join(project, ".claude", "skills", "release"), { recursive: true });
+    await fs.writeFile(path.join(project, ".claude", "skills", "release", "SKILL.md"), "# release");
+    await write("project/.claude/settings.json", { permissions: { allow: ["Bash(npm test)"] } });
+    const r = await collect();
+    expect(userInst(r).skills).toEqual([
+      { name: "vercel@claude-plugins-official", kind: "plugin", sourceFile: `${home}/.claude/settings.json` },
+      { name: "seo@community", kind: "plugin", sourceFile: `${home}/.claude/settings.json` },
+      { name: "deploy", kind: "skill", sourceFile: `${home}/.claude/skills` },
+    ]);
+    expect(projectInst(r).skills.map((s) => s.name).sort()).toEqual(["deploy", "release", "seo@community", "vercel@claude-plugins-official"]);
+    expect(JSON.stringify(r)).not.toContain(SECRETS.openai);
   });
 });
 

@@ -87,7 +87,7 @@ export async function readJsonConfig(
   }
 }
 
-const SKIP_DIRS = new Set(["node_modules", ".git", ".next", "dist", "build", "target", ".venv"]);
+export const SKIP_DIRS = new Set(["node_modules", ".git", ".next", "dist", "build", "target", ".venv"]);
 
 /**
  * Walk `root` up to `maxDepth`, returning files whose basename is in `names`.

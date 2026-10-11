@@ -18,7 +18,9 @@ Controls shown as a table: `skipDangerousModePermissionPrompt`, `permissions.dis
 
 **Stated as notes, not interpreted:** the vendor's description of the effective mode (including that `auto` is the built-in default since v2.1.283 and that `auto` set in project files does not take effect); `autoMode` rule contents; `env` values; `allowedMcpServers` (not applied to enablement); `deniedMcpServers` URL/command patterns beyond exact matches; legacy per-project `allowedTools` (not merged into declarations); folder-trust state.
 
-**Not read:** session transcripts (`~/.claude/projects/**`), `history.jsonl`, todos, credentials, plugin and skill contents, hook script files (only the command string from settings), `~/.claude.json` usage/cost keys, any file outside the list above.
+**Session transcripts (`~/.claude/projects/**`): not read, unless you run `agentlens trace import <file>` on a transcript you name.** Even then AgentLens keeps only the tool-call structure — tool names, file paths, redacted and truncated command strings, hosts, MCP server and tool names, skill names — never prompts, responses, file contents or tool outputs. A hook-based trace exists only for sessions you start with the AgentLens hook settings ([session-trace.md](session-trace.md)).
+
+**Not read:** `history.jsonl`, todos, credentials, plugin and skill contents (skill **directory names** and `enabledPlugins` keys are read), hook script files (only the command string from settings), `~/.claude.json` usage/cost keys, any file outside the list above.
 
 **Invisible by nature:** command-line flags (`--permission-mode`, `--dangerously-skip-permissions`, `--add-dir`, `--settings`), environment variables set in the shell, server-side availability of auto mode, the classifier's decisions, "don't ask again" grants held only in memory, and what the platform's evaluator actually does at run time — the only ground truth.
 
@@ -50,6 +52,8 @@ Controls shown as a table: `skipDangerousModePermissionPrompt`, `permissions.dis
 - No network: no analytics, no update checks, no remote assets; the dashboard serves loopback `Host` values only.
 - No claim of enforcement: every rule, mode and scenario is a configured declaration. Absence of a finding is absence of a *declared* risk in the files above — nothing more.
 
-**Planned, not built:** a per-session resource trace from vendor hooks the user enables, plus an explicit transcript import ([session-trace.md](session-trace.md)). When it ships, the transcript line above changes to "not read, unless you run `agentlens trace import <file>` on a transcript you name" — and even then only tool-call structure is kept.
+## Session traces (what a traced session reveals, and to whom)
+
+A session you start with the AgentLens hook settings (`npm run qa -- claude <recipe>`, or `claude --settings "$(agentlens hook-settings)"`) sends one event per tool call to the loopback receiver, projected and redacted **inside the session process** by `bin/agentlens-hook.mjs`: file paths written (contents never), redacted command strings (output never), `scheme://host/path` of fetched URLs (query strings never), MCP server and tool names (arguments never), skill names, subagent types, session start/end with cwd and mode, configuration-change notices. File reads are included only with `--reads`, reduced to directories. On session end, if the working directory lies under a project AgentLens has already scanned, a size+mtime diff of that directory is recorded (paths only). Traces live in `data/observed/trace-*.ndjson` (gitignored, 7 days, 10 MiB/day) and are shown on `/sessions`; `agentlens trace print` exports one as text — that export carries paths and commands and is not meant to leave the machine. The hook prints nothing, exits 0, writes no files and takes only a port; it can never block or alter a session.
 
 Related: [collectors.md](collectors.md) (exact mapping per key), [security-architecture.md](security-architecture.md) (SR1–SR5 and their tests), [threat-scenarios.md](threat-scenarios.md) (how declarations are composed).

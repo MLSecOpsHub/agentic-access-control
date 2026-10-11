@@ -67,6 +67,15 @@ export const AdditionalDirectorySchema = z.object({
 });
 export type AdditionalDirectory = z.infer<typeof AdditionalDirectorySchema>;
 
+// Declared skills and plugins — names only, contents never read — so a
+// session trace's `skill` events can be joined to what the instance declares.
+export const SkillSchema = z.object({
+  name: z.string(),
+  kind: z.enum(["skill", "plugin"]),
+  sourceFile: z.string(),
+});
+export type Skill = z.infer<typeof SkillSchema>;
+
 export const PlatformSchema = z.enum(["claude-code", "codex-cli", "gemini-cli", "generic-mcp"]);
 export type Platform = z.infer<typeof PlatformSchema>;
 
@@ -94,6 +103,7 @@ export const AgentInstanceSchema = z.object({
   // outside the project without prompts (S5 reads it). Defaults to [].
   additionalDirectories: z.array(AdditionalDirectorySchema).default([]),
   controls: z.array(ControlSchema).default([]),
+  skills: z.array(SkillSchema).default([]),
 });
 export type AgentInstance = z.infer<typeof AgentInstanceSchema>;
 

@@ -29,6 +29,7 @@ One (platform × scope × project) combination. A user-level Claude Code config 
 | `scope` | `"user" \| "project"` | |
 | `projectPath` | string \| null | Absolute path when scope = project |
 | `additionalDirectories` | { path, sourceFile }[] | Claude Code `permissions.additionalDirectories` with provenance — file access outside the project without prompts |
+| `skills` | { name, kind: "skill" \| "plugin", sourceFile }[] | Declared skills/plugins, names only (Claude Code `enabledPlugins` keys, `SKILL.md` directory names) |
 | `controls` | { key, value, sourceFile }[] | Permission-relevant single-value settings beyond rules/mode/sandbox (e.g. `skipDangerousModePermissionPrompt`, `permissions.disableBypassPermissionsMode`, `enableAllProjectMcpServers`), highest-precedence file wins; H9 reads it |
 | `notes` | string[] | Platform mapping notes rendered verbatim on the instance page: native constructs that do not map onto rules, inputs the collector knows exist but does not read, vendor caveats (SR4). Empty for Claude Code; see [collectors.md](collectors.md) §4 for Gemini CLI |
 | `configFiles` | string[] | Every file read to build this instance — the provenance universe |

@@ -28,8 +28,9 @@ const HELP = `AgentLens QA lab — npm run qa -- <command> [options]
                                 re-collect lab projects whenever a config changes (default --keep 50)
   up [--port <n>] [--isolated]  dev + watch together (Ctrl-C stops both)
   verify [--lab <dir>]          generate a fresh lab in a temp dir and assert every recipe (exit 1 on mismatch)
-  claude <recipe> [--isolated] [--no-telemetry] [--port <n>] [-- <claude args>]
-                                open Claude Code in a recipe, telemetry → the dashboard's loopback receiver
+  claude <recipe> [--isolated] [--no-telemetry] [--no-trace] [--reads] [--port <n>] [-- <claude args>]
+                                open Claude Code in a recipe; telemetry → /live and session-trace hook → /sessions
+                                (both per-process; --reads adds file reads to the trace)
   reset-data                    delete the lab's snapshots and observed events
   recipes                       list recipe ids
 
@@ -44,12 +45,14 @@ interface Flags {
   poll: number | null;
   keep: number;
   telemetry: boolean;
+  trace: boolean;
+  reads: boolean;
   positional: string[];
   passthrough: string[];
 }
 
 function parse(argv: string[]): Flags {
-  const f: Flags = { lab: DEFAULT_LAB, isolated: false, reset: false, port: 3000, poll: null, keep: 50, telemetry: true, positional: [], passthrough: [] };
+  const f: Flags = { lab: DEFAULT_LAB, isolated: false, reset: false, port: 3000, poll: null, keep: 50, telemetry: true, trace: true, reads: false, positional: [], passthrough: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--") {
@@ -59,6 +62,8 @@ function parse(argv: string[]): Flags {
     else if (a === "--isolated") f.isolated = true;
     else if (a === "--reset") f.reset = true;
     else if (a === "--no-telemetry") f.telemetry = false;
+    else if (a === "--no-trace") f.trace = false;
+    else if (a === "--reads") f.reads = true;
     else if (a === "--port") f.port = Number(argv[++i]);
     else if (a === "--poll") f.poll = Number(argv[++i]);
     else if (a === "--keep") f.keep = Number(argv[++i]);
@@ -157,7 +162,7 @@ async function main(): Promise<number> {
       const id = f.positional[0];
       if (!id) fail(`usage: ${cmd} <recipe>  (ids: ${RECIPES.map((r) => r.id).join(", ")})`);
       if (!RECIPES.some((r) => r.id === id)) fail(`unknown recipe "${id}" — run: npm run qa -- recipes`);
-      return launch(cmd as Agent, { recipeDir: recipeDir(lab, id), lab, port: f.port, telemetry: f.telemetry, isolated: f.isolated, args: f.passthrough });
+      return launch(cmd as Agent, { recipeDir: recipeDir(lab, id), lab, port: f.port, telemetry: f.telemetry, isolated: f.isolated, args: f.passthrough, trace: f.trace ? { port: f.port, reads: f.reads } : null });
     }
     case "reset-data": {
       const lab = labPaths(f.lab);

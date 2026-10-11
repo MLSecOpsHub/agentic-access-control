@@ -1,5 +1,6 @@
 import { loadDashboardData } from "@/lib/snapshot";
 import { runScenarios } from "@/lib/threat-scenarios";
+import { loadObservedUsage } from "@/lib/trace-observed";
 import { SnapshotMeta, ScenarioList, sortScenarios } from "../components";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export default async function ThreatModel() {
   const { current } = await loadDashboardData();
   const s = current.snapshot;
   const scenarios = sortScenarios(
-    runScenarios({ instances: s.instances, mcpServers: s.mcpServers, findings: s.findings }),
+    runScenarios({ instances: s.instances, mcpServers: s.mcpServers, findings: s.findings, observed: current.isFixture ? undefined : await loadObservedUsage() }),
   );
 
   return (

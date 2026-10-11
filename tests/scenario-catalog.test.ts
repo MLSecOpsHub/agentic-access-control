@@ -658,6 +658,42 @@ describe("S5 — credential concentration", () => {
   });
 });
 
+describe("declared+observed upgrade from session traces (S1/S4)", () => {
+  const observedFor = (server: string, cwd: string) => ({
+    windowDays: 7,
+    mcpServersUsed: new Map([[server, { sessions: new Set(["sess-a"]), cwds: new Set([cwd]), lastAt: "2026-10-12T10:00:00.000Z" }]]),
+  });
+  it("S4 rises one level and gains an observed atom when its server was used from the project", () => {
+    const inst = s4Instance();
+    const servers = [s4Server()];
+    const findings = runHeuristics({ instances: [inst], mcpServers: servers });
+    const upgraded = runScenarios({ instances: [inst], mcpServers: servers, findings, observed: observedFor("db", `${PROJECT}/src`) }).find((s) => s.scenarioId === "S4-unreviewed-project-takeover")!;
+    expect(upgraded.confidence).toBe("declared+observed");
+    expect(upgraded.severity).toBe("critical");
+    const atom = upgraded.preconditions.at(-1)!;
+    expect(atom.kind).toBe("observed-event");
+    expect(atom.confidence).toBe("observed");
+    expect(atom.refId).toBe("trace:sess-a");
+    expect(atom.claim).toContain("never which rule permitted it");
+    assertNoBannedPhrases(atom.claim, "observed atom");
+  });
+  it("usage from another project does not upgrade; user-scope instances accept any cwd; capped at critical", () => {
+    const inst = s4Instance();
+    const servers = [s4Server()];
+    const findings = runHeuristics({ instances: [inst], mcpServers: servers });
+    const other = runScenarios({ instances: [inst], mcpServers: servers, findings, observed: observedFor("db", "/tmp/elsewhere") }).find((s) => s.scenarioId === "S4-unreviewed-project-takeover")!;
+    expect(other.confidence).toBe("declared");
+    expect(other.severity).toBe("high");
+    // S1 on a user instance, already critical: stays critical, becomes declared+observed
+    const user = makeInstance({ id: "claude-code:user", permissionRules: [makeRule({ effect: "allow", matcher: "Bash", tool: "Bash", sourceLevel: "user", precedenceRank: 14 })] });
+    const userServers = [makeServer({ name: "github", enablement: "enabled" })];
+    const userFindings = runHeuristics({ instances: [user], mcpServers: userServers });
+    const s1 = runScenarios({ instances: [user], mcpServers: userServers, findings: userFindings, observed: observedFor("github", "/anywhere/at/all") }).find((s) => s.scenarioId === "S1-supply-chain-to-exfil")!;
+    expect(s1.confidence).toBe("declared+observed");
+    expect(s1.severity).toBe("critical");
+  });
+});
+
 describe("reachability predicate agreement with vendor-conformance", () => {
   it("deny Bash outranks allow Bash per precedenceRank", () => {
     const bashAllow = makeRule({

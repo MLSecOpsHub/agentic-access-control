@@ -34,6 +34,7 @@ export function makeInstance(overrides: Partial<AgentInstance> = {}): AgentInsta
     notes: [],
     additionalDirectories: [],
     controls: [],
+    skills: [],
     ...overrides,
   };
 }

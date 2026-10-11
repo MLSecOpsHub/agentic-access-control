@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { existsSync } from "fs";
 import path from "path";
 import { claudeOtelEnv } from "../../lib/telemetry-launch";
+import { renderHookSettings } from "../../lib/hook-settings";
 import type { LabPaths } from "./recipes";
 
 // Session launchers: open a real agent in a lab recipe directory. The launcher
@@ -46,6 +47,7 @@ export interface LaunchOptions {
   telemetry: boolean;
   isolated: boolean;
   args: string[];
+  trace?: { port: number; reads: boolean } | null; // per-process hook settings (docs/session-trace.md §4)
   log?: (line: string) => void;
 }
 
@@ -72,10 +74,15 @@ export function launch(agent: Agent, opts: LaunchOptions): Promise<number> {
     Object.assign(env, launcher.isolatedEnv(opts.lab));
     log("qa: --isolated: the agent runs with the lab HOME — no saved credentials or user settings; it may ask you to log in and will write its state under the lab home.");
   }
+  const args = [...opts.args];
+  if (opts.trace && agent === "claude") {
+    args.push("--settings", renderHookSettings({ port: opts.trace.port, reads: opts.trace.reads }));
+    log(`qa: session trace on — hook settings passed with --settings apply to this process only; events → http://127.0.0.1:${opts.trace.port}/api/trace/v1/events`);
+  }
   log(launcher.notice);
   log(`qa: cwd ${opts.recipeDir}${opts.telemetry ? ` · telemetry → ${endpoint}` : ""}`);
   return new Promise((resolve) => {
-    const child = spawn(launcher.bin, opts.args, { cwd: opts.recipeDir, stdio: "inherit", env });
+    const child = spawn(launcher.bin, args, { cwd: opts.recipeDir, stdio: "inherit", env });
     child.on("error", (err) => {
       log(`qa: failed to start ${launcher.bin}: ${err.message}`);
       resolve(2);

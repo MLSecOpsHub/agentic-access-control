@@ -25,6 +25,8 @@ Usage:
                                 [--format json|sarif] [--fail-on <severity>] [--no-write]
   agentlens watch [root ...]    re-collect whenever an agent config file changes
                                 [--poll <sec>] [--keep <n>]  (writes only when content changed)
+  agentlens hook-settings       print the per-session hook JSON for 'claude --settings' [--with-reads]
+  agentlens trace <sub>         list | print <id> [--json] | import <file.jsonl> [--reads] | close <id>
 
 Roots: project directories to scan. With none given: the current directory
 plus every project listed in ~/.claude.json (where Claude Code has run).
@@ -154,7 +156,9 @@ async function main() {
       ? rest.filter((a) => !/^--(format|fail-on|no-write)/.test(a))
       : cmd === "watch"
         ? rest.filter((a) => !/^--(poll|keep)/.test(a))
-        : rest,
+        : cmd === "trace" || cmd === "hook-settings"
+          ? rest.filter((a) => /^--(data-dir|port)/.test(a) || (rest[rest.indexOf(a) - 1] ?? "").startsWith("--data-dir") || (rest[rest.indexOf(a) - 1] ?? "") === "--port")
+          : rest,
   );
   if (flags.help) {
     console.log(HELP);
@@ -184,6 +188,16 @@ async function main() {
       child.on("exit", (code) => process.exit(code ?? 0));
       for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => child.kill(sig));
       break;
+    }
+    case "hook-settings":
+    case "trace": {
+      const sub = cmd === "hook-settings" ? ["hook-settings", "--port", String(flags.port)] : rest.filter((a) => !/^--(data-dir)/.test(a));
+      const r = spawnSync(
+        process.execPath,
+        [depBin("tsx", "dist/cli.mjs"), path.join(PKG_ROOT, "scripts", "trace.ts"), ...sub],
+        { stdio: "inherit", env: childEnv(dataDir) },
+      );
+      process.exit(r.status ?? 2);
     }
     case "check": {
       // Pass-through: check.ts owns its own flags (--format, --fail-on, --no-write).

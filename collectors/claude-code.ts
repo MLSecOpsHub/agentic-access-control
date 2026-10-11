@@ -5,6 +5,7 @@ import type {
   AdditionalDirectory,
   AgentInstance,
   Control,
+  Skill,
   Effect,
   Hook,
   McpServer,
@@ -512,6 +513,45 @@ function trustNotesFrom(entries: Array<Record<string, unknown>>, file: string): 
   return notes;
 }
 
+// Declared skills/plugins: `enabledPlugins` keys from the highest-precedence
+// settings file, plus directory names under <dir>/.claude/skills/*/SKILL.md.
+// Names only; SKILL.md contents are never read (what-agentlens-sees.md).
+async function skillDirNames(root: string): Promise<string[]> {
+  const out: string[] = [];
+  let entries;
+  try {
+    entries = await fs.readdir(path.join(root, ".claude", "skills"), { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    if (!e.isDirectory() || e.isSymbolicLink()) continue;
+    try {
+      const st = await fs.lstat(path.join(root, ".claude", "skills", e.name, "SKILL.md"));
+      if (st.isFile()) out.push(e.name);
+    } catch {
+      // no SKILL.md → not a skill directory
+    }
+  }
+  return out.sort();
+}
+
+async function skillsFrom(files: SettingsFile[], roots: string[]): Promise<Skill[]> {
+  const out: Skill[] = [];
+  for (const sf of files) {
+    const plugins = obj(sf.data.enabledPlugins);
+    if (plugins) {
+      for (const name of Object.keys(plugins)) out.push({ name: redact(name), kind: "plugin", sourceFile: sf.file });
+      break;
+    }
+  }
+  for (const root of roots) {
+    const dir = path.join(root, ".claude", "skills");
+    for (const name of await skillDirNames(root)) out.push({ name: redact(name), kind: "skill", sourceFile: dir });
+  }
+  return out;
+}
+
 export async function collectClaudeCode(projectRoots: string[]): Promise<CollectorResult> {
   const issues: ParseIssue[] = [];
   const home = os.homedir();
@@ -551,6 +591,7 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
     notes: [...settingsNotesFrom(userSettings, userMode, null, userSandbox, userDirs), ...userApprovals.notes],
     additionalDirectories: userDirs,
     controls: controlsFrom(userSettings),
+    skills: await skillsFrom(userSettings, [home]),
   };
   if (userInstance.configFiles.length > 0) {
     instances.push(userInstance);
@@ -624,6 +665,7 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
       ],
       additionalDirectories: dirs,
       controls: controlsFrom(settings),
+      skills: await skillsFrom(settings, [home, abs]),
     });
 
     if (mcpJson) {

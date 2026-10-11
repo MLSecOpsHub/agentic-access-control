@@ -255,6 +255,7 @@ export async function collectGeminiCli(projectRoots: string[]): Promise<Collecto
       hooks: userSettings.flatMap((sf) => parseHooksBlock(sf.data.hooks, sf.file)),
       additionalDirectories: [],
       controls: [],
+      skills: [],
       notes: notesFrom(userSettings, "user"),
     });
     const enablement = enablementFor(userSettings);
@@ -297,6 +298,7 @@ export async function collectGeminiCli(projectRoots: string[]): Promise<Collecto
       hooks: settings.flatMap((sf) => parseHooksBlock(sf.data.hooks, sf.file)),
       additionalDirectories: [],
       controls: [],
+      skills: [],
       notes: notesFrom(settings, "project", trustRuleNote(trusted, abs, trustedFile)),
     });
     const enablement = enablementFor(settings);

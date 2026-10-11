@@ -221,6 +221,7 @@ export async function collectCodexCli(projectRoots: string[]): Promise<Collector
       hooks: [],
       additionalDirectories: [],
       controls: [],
+      skills: [],
       notes: notesFrom(userSettings, "user", { level: null, file: null, projectFile: null }, profiles),
     });
     mcpServers.push(...mcpServersFrom(userData, userFile, id));
@@ -266,6 +267,7 @@ export async function collectCodexCli(projectRoots: string[]): Promise<Collector
       hooks: [],
       additionalDirectories: [],
       controls: [],
+      skills: [],
       notes: notesFrom(
         level === "trusted" ? effective : [...effective, projectSf],
         "project",

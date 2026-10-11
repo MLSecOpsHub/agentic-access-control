@@ -43,9 +43,54 @@ function downgradeOneLevel(sev: Severity): Severity {
   return SEVERITY_LADDER[Math.min(i + 1, SEVERITY_LADDER.length - 1)];
 }
 
+// Observed MCP usage from session traces (docs/session-trace.md §13): which
+// declared server names were called, in how many sessions, from which cwds.
+// Invocation matching only — never which rule permitted the call.
+export interface ObservedMcpUsage {
+  sessions: Set<string>;
+  cwds: Set<string>;
+  lastAt: string;
+}
+export interface ObservedUsage {
+  mcpServersUsed: Map<string, ObservedMcpUsage>;
+  windowDays: number;
+}
+
 interface ScenarioCtx {
   mcpServers: McpServer[];
   findings: RiskFinding[];
+  observed?: ObservedUsage;
+}
+
+const SEVERITY_UP: Record<Severity, Severity> = { info: "low", low: "medium", medium: "high", high: "critical", critical: "critical" };
+
+// Upgrade to declared+observed when the scenario's entry server was used in a
+// traced session belonging to this instance (cwd under projectPath; any cwd
+// for user scope). Raises one level per §5; appends an observed atom.
+function applyObservedUsage(scenario: ThreatScenario, serverName: string, inst: AgentInstance, ctx: ScenarioCtx): ThreatScenario {
+  const usage = ctx.observed?.mcpServersUsed.get(serverName);
+  if (!usage) return scenario;
+  const prefix = inst.projectPath ? inst.projectPath.replace(/\/$/, "") + "/" : null;
+  const relevant = prefix === null || [...usage.cwds].some((c) => c === inst.projectPath || c.startsWith(prefix));
+  if (!relevant) return scenario;
+  const n = usage.sessions.size;
+  const sessionId = [...usage.sessions][0];
+  return {
+    ...scenario,
+    confidence: "declared+observed",
+    severity: SEVERITY_UP[scenario.severity],
+    preconditions: [
+      ...scenario.preconditions,
+      {
+        kind: "observed-event",
+        claim: `MCP server "${serverName}" was used in ${n} traced session${n === 1 ? "" : "s"} in the last ${ctx.observed!.windowDays} days (invocation matching from session traces — never which rule permitted it)`,
+        evidence: `last used ${usage.lastAt}`,
+        sourceFile: null,
+        refId: `trace:${sessionId}`,
+        confidence: "observed",
+      },
+    ],
+  };
 }
 
 interface CatalogEntry {
@@ -171,7 +216,7 @@ const S1: CatalogEntry = {
 
     const severity = anyNullEnablement ? downgradeOneLevel("critical") : "critical";
 
-    return {
+    return applyObservedUsage({
       id: `S1-supply-chain-to-exfil:${inst.id}:0`,
       scenarioId: "S1-supply-chain-to-exfil",
       title: `Configured declarations permit a path: unpinned MCP server → shell access → credential env (${inst.id})`,
@@ -182,7 +227,7 @@ const S1: CatalogEntry = {
       severanceHints,
       instanceId: inst.id,
       caveat: SCENARIO_CAVEAT,
-    };
+    }, entryServer.name, inst, ctx);
   },
 };
 
@@ -389,7 +434,7 @@ const S4: CatalogEntry = {
       preconditionIndex: i,
       text: `Removing the configuration element at the file above severs this path.`,
     }));
-    return {
+    return applyObservedUsage({
       id: `S4-unreviewed-project-takeover:${inst.id}:0`,
       scenarioId: "S4-unreviewed-project-takeover",
       title: `Configured declarations permit a path: ${tierText} allow on ${rule.tool} → project MCP server with no recorded approval (${inst.id})`,
@@ -402,13 +447,13 @@ const S4: CatalogEntry = {
       severanceHints,
       instanceId: inst.id,
       caveat: SCENARIO_CAVEAT,
-    };
+    }, server.name, inst, ctx);
   },
 };
 
 // A read-tool matcher that reaches beyond the project: home, dotfile and
 // credential-store paths where agent configs (and their env blocks) live.
-const HOME_OR_CONFIG_PATH = /(~|\$HOME|\/home\/|\/Users\/|\/root\/|\.ssh|\.aws|\.gnupg|\.config|\.env\b|\.claude|\.gemini|\.codex|\.mcp\.json)/;
+export const HOME_OR_CONFIG_PATH = /(~|\$HOME|\/home\/|\/Users\/|\/root\/|\.ssh|\.aws|\.gnupg|\.config|\.env\b|\.claude|\.gemini|\.codex|\.mcp\.json)/;
 
 const S5: CatalogEntry = {
   scenarioId: "S5-credential-concentration",

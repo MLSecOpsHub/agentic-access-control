@@ -52,7 +52,8 @@
     "prepublishOnly": "npm run typecheck && npm test",
     "prepack": "npm run build",
     "watch": "tsx collectors/watch.ts",
-    "qa": "tsx scripts/qa.ts"
+    "qa": "tsx scripts/qa.ts",
+    "trace": "tsx scripts/trace.ts"
   },
   "dependencies": {
     "next": "15.5.27",

@@ -4,12 +4,13 @@ import type {
   RiskFinding,
   ThreatScenario,
 } from "./schema";
-import { CATALOG } from "./scenario-catalog";
+import { CATALOG, type ObservedUsage } from "./scenario-catalog";
 
 export interface RunScenariosCtx {
   instances: AgentInstance[];
   mcpServers: McpServer[];
   findings: RiskFinding[];
+  observed?: ObservedUsage; // session-trace usage; dashboard only
 }
 
 export function runScenarios(ctx: RunScenariosCtx): ThreatScenario[] {

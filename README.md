@@ -20,7 +20,8 @@ What to look at first:
 1. **Overview** — instances per platform, declaration counts, MCP servers, findings by severity, drift since the last snapshot.
 2. **`/agents/<id>`** — one instance's merged declarations in the platform's documented evaluation order (Claude Code: deny → ask → allow across all tiers), each row traceable to its source file; sandbox fields and hooks with per-field provenance; per-platform *mapping notes* for what does not map onto rules.
 3. **`/threat-model`** — findings composed into cited attack paths (S1 unpinned MCP server → shell → credential env; S2 bypassed gating; S3 remote-content hook chain; S4 unreviewed project takeover). Every precondition names its file; every scenario carries the same caveat: *configured declarations, not an observed attack*.
-4. **`/share`** — a counts-only card you can paste anywhere. By tested contract it contains no paths, matchers, server names or hostnames:
+4. **`/sessions`** — what a session *actually touched*, for sessions you start with the AgentLens hook (`npm run qa -- claude <recipe>` or `claude --settings "$(agentlens hook-settings)"`): files written, commands, hosts, MCP tools, skills, installs, and the on-disk delta over the session window — with observed findings such as "a tool call targeted an agent configuration file". Tool-level and projection-only: no prompts, no file contents, no outputs.
+5. **`/share`** — a counts-only card you can paste anywhere. By tested contract it contains no paths, matchers, server names or hostnames:
 
 ```
 AgentLens posture summary · 2026-08-13
@@ -60,7 +61,7 @@ It targets the whitespace the research identifies: individual/prosumer tooling (
 | `docs/security-architecture.md` | Components, trust boundaries, security requirements SR1–SR5 |
 | `docs/threat-model.md` | STRIDE pass mapped to OWASP Agentic Top 10 (ASI03) |
 | `docs/threat-scenarios.md` | Threat scenario engine — composes collected posture into cited attack-path scenarios (S1–S5, `/threat-model` page) |
-| `docs/session-trace.md` | **Spec (not implemented)** — per-session trace of files, commands, hosts, MCP tools, skills and dependencies from user-enabled hooks, with an on-disk window diff |
+| `docs/session-trace.md` | Session trace — per-session record of files written, commands, hosts, MCP tools, skills and dependencies from hooks you enable per launch, with an on-disk window diff, observed findings and the `declared+observed` scenario upgrade |
 | `docs/data-model.md` | Canonical schema (mirrored by `lib/schema.ts` zod schemas) |
 | `docs/what-agentlens-sees.md` | **The honest inventory:** per platform, what is read, what is only stated, what is not read, and what no file can show |
 | `docs/collectors.md` | Per-platform collector specs: file locations, precedence, risk heuristics |

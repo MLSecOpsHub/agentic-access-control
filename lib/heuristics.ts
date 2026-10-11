@@ -30,11 +30,11 @@ const REDUCED_OVERSIGHT_MODES: Record<string, Record<string, string>> = {
 };
 const underProject = (file: string | null, projectPath: string | null) =>
   projectPath !== null && file !== null && file.startsWith(projectPath + "/");
-const PIPE_TO_SHELL = /(curl|wget)[^|;]*\|\s*(ba|z)?sh\b/;
+export const PIPE_TO_SHELL = /(curl|wget)[^|;]*\|\s*(ba|z)?sh\b/;
 // A package token carrying an explicit version: name@1.2.3, @scope/name@^1.2,
 // or pip-style name==1.2. False negatives fall through to the unpinned (high)
 // variant — over-warning is the acceptable direction here.
-const PINNED_PACKAGE = /\S@[~^=]?\d|\S==\d/;
+export const PINNED_PACKAGE = /\S@[~^=]?\d|\S==\d/;
 
 interface Ctx {
   instances: AgentInstance[];

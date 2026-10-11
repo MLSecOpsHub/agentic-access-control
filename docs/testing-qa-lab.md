@@ -42,7 +42,7 @@ npm run qa -- verify                      # deterministic self-check of every re
 | `watch [--isolated] [--poll sec] [--keep n]` | `agentlens watch` over the lab projects (default `--keep 50`) |
 | `up [--port n] [--isolated]` | `dev` + `watch` under one supervisor; Ctrl-C stops both |
 | `verify [<lab dir>]` | Generates a fresh lab in a temp dir (or uses the given one), collects it isolated, asserts each recipe's findings, scenarios and notes; exit 1 on mismatch. Also runs in CI (`tests/qa-lab.test.ts`) |
-| `claude <recipe> [--isolated] [--no-telemetry] [--port n] [-- args]` | Opens Claude Code in the recipe directory with the `/live` telemetry env set **on that process only** (loopback endpoint). `gemini` / `codex` share the launcher interface and are planned next |
+| `claude <recipe> [--isolated] [--no-telemetry] [--no-trace] [--reads] [--port n] [-- args]` | Opens Claude Code in the recipe directory with the `/live` telemetry env **and** the session-trace hook settings (`--settings`, per process) — both on by default; `--reads` adds file reads to the trace. `gemini` / `codex` share the launcher interface and are planned next |
 | `reset-data` | Deletes the lab's `data/snapshots` and `data/observed` |
 
 ## Watch mode (`agentlens watch`, also outside the lab)
