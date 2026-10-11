@@ -29,3 +29,30 @@ export function verifyRawSnapshotHash(raw: unknown): boolean {
 export function verifySnapshotHash(snapshot: Snapshot): boolean {
   return snapshot.hash === snapshotHash(snapshot);
 }
+
+// Content fingerprint for change detection (watch mode). Unlike the SR5 hash
+// it ignores `generatedAt` and `hash`, and it is key-order independent so a
+// fingerprint seeded from a file on disk agrees with one computed in memory
+// (zod re-emits keys in schema order). Never used for integrity.
+export function canonicalJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  if (typeof v === "object" && v !== null) {
+    const o = v as Record<string, unknown>;
+    const keys = Object.keys(o)
+      .filter((k) => o[k] !== undefined)
+      .sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
+
+export function rawContentFingerprint(raw: Record<string, unknown>): string {
+  const body: Record<string, unknown> = { ...raw };
+  delete body.generatedAt;
+  delete body.hash;
+  return createHash("sha256").update(canonicalJson(body)).digest("hex");
+}
+
+export function contentFingerprint(snapshot: Snapshot): string {
+  return rawContentFingerprint(snapshot as unknown as Record<string, unknown>);
+}

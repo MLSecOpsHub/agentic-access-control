@@ -11,9 +11,12 @@ import { collectCodexCli } from "./codex-cli";
 import { collectGeminiCli } from "./gemini-cli";
 import { PARSE_ISSUE_TEXT, type ParseIssue } from "./util";
 
-// The collection pipeline shared by `collect` and `check`. SR1: `writeSnapshot`
-// is the ONLY write in the collector tree and targets the snapshots directory
-// exclusively (AGENTLENS_DATA_DIR or <cwd>/data).
+// The collection pipeline shared by `collect`, `check` and `watch`. SR1: the
+// collector tree performs exactly two kinds of filesystem mutation, both on
+// AgentLens's own data directory (AGENTLENS_DATA_DIR or <cwd>/data) and never
+// on agent configuration: `writeSnapshot` (the only write) and
+// `pruneSnapshots` (the only deletion — opt-in via `watch --keep`, restricted
+// to snapshot files this pipeline named).
 
 export const OUT_DIR = path.join(
   process.env.AGENTLENS_DATA_DIR ?? path.join(process.cwd(), "data"),
@@ -73,6 +76,27 @@ export async function collectSnapshot(explicitRoots: string[]): Promise<CollectR
   SnapshotSchema.parse(snapshot); // never emit an invalid snapshot
 
   return { snapshot, roots, discovered, issues };
+}
+
+// Files this pipeline writes: <ISO timestamp with : and . replaced by ->.json
+const SNAPSHOT_NAME = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json$/;
+
+/** Delete the oldest snapshot files beyond `keep` (never fewer than 2 — drift needs two). */
+export async function pruneSnapshots(outDir: string, keep: number): Promise<string[]> {
+  const retain = Math.max(2, Math.floor(keep));
+  let names: string[];
+  try {
+    names = (await fs.readdir(outDir)).filter((f) => SNAPSHOT_NAME.test(f)).sort();
+  } catch {
+    return [];
+  }
+  const removed: string[] = [];
+  for (const f of names.slice(0, Math.max(0, names.length - retain))) {
+    const file = path.join(outDir, f);
+    await fs.unlink(file);
+    removed.push(file);
+  }
+  return removed;
 }
 
 export async function writeSnapshot(snapshot: Snapshot, outDir = OUT_DIR): Promise<string> {

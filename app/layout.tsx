@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Nav } from "./nav";
+import { AutoRefresh } from "./live/auto-refresh";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,9 +10,13 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Set by `agentlens watch` / the QA lab (seconds): every page re-reads the
+  // data dir on an interval so a new snapshot shows up without a manual reload.
+  const refreshSeconds = Number(process.env.AGENTLENS_AUTO_REFRESH);
   return (
     <html lang="en">
       <body>
+        {Number.isFinite(refreshSeconds) && refreshSeconds > 0 ? <AutoRefresh seconds={refreshSeconds} /> : null}
         <div className="wrap">
           <header className="topbar">
             <Link href="/" className="brand">

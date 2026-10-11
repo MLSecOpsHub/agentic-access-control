@@ -3,22 +3,13 @@ import { loadDashboardData } from "@/lib/snapshot";
 import type { ObservedEvent } from "@/lib/observed";
 import type { McpServer } from "@/lib/schema";
 import { timeAgo } from "@/lib/format";
+import { renderLaunchSnippet } from "@/lib/telemetry-launch";
 import { AutoRefresh } from "./auto-refresh";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Live activity" };
 
-const LAUNCH_SNIPPET = `CLAUDE_CODE_ENABLE_TELEMETRY=1 \\
-OTEL_METRICS_EXPORTER=none \\
-OTEL_LOGS_EXPORTER=otlp \\
-OTEL_TRACES_EXPORTER=none \\
-OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json \\
-OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://127.0.0.1:3000/api/otel/v1/logs \\
-OTEL_LOGS_EXPORT_INTERVAL=1000 \\
-OTEL_LOG_USER_PROMPTS=0 \\
-OTEL_LOG_ASSISTANT_RESPONSES=0 \\
-OTEL_LOG_TOOL_DETAILS=0 \\
-claude`;
+const LAUNCH_SNIPPET = renderLaunchSnippet("http://127.0.0.1:3000/api/otel/v1/logs");
 
 function DecisionBadge({ e }: { e: ObservedEvent }) {
   if (e.decision === "accept") {
@@ -114,7 +105,8 @@ export default async function LiveActivity() {
 
   return (
     <main>
-      <AutoRefresh seconds={5} />
+      {/* The layout already refreshes every page when AGENTLENS_AUTO_REFRESH is set (watch mode / QA lab). */}
+      {process.env.AGENTLENS_AUTO_REFRESH ? null : <AutoRefresh seconds={5} />}
       <h1>Observed permission activity</h1>
       <p className="meta">
         Evidence classes: <b>decided</b> and <b>executed</b> come from documented Claude Code

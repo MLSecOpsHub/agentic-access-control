@@ -23,6 +23,8 @@ Usage:
   agentlens serve               serve the dashboard on 127.0.0.1
   agentlens check [root ...]    headless: collect, print a report, exit 1 on findings
                                 [--format json|sarif] [--fail-on <severity>] [--no-write]
+  agentlens watch [root ...]    re-collect whenever an agent config file changes
+                                [--poll <sec>] [--keep <n>]  (writes only when content changed)
 
 Roots: project directories to scan. With none given: the current directory
 plus every project listed in ~/.claude.json (where Claude Code has run).
@@ -148,7 +150,11 @@ async function main() {
     return;
   }
   const { flags, positional } = parseArgs(
-    cmd === "check" ? rest.filter((a) => !/^--(format|fail-on|no-write)/.test(a)) : rest,
+    cmd === "check"
+      ? rest.filter((a) => !/^--(format|fail-on|no-write)/.test(a))
+      : cmd === "watch"
+        ? rest.filter((a) => !/^--(poll|keep)/.test(a))
+        : rest,
   );
   if (flags.help) {
     console.log(HELP);
@@ -168,6 +174,17 @@ async function main() {
     case "serve":
       await serve(flags, dataDir);
       break;
+    case "watch": {
+      // Long-running: forward signals so Ctrl-C stops the watcher cleanly.
+      const child = spawn(
+        process.execPath,
+        [depBin("tsx", "dist/cli.mjs"), path.join(PKG_ROOT, "collectors", "watch.ts"), ...rest.filter((a) => !/^--(data-dir|port|open)/.test(a))],
+        { stdio: "inherit", env: childEnv(dataDir) },
+      );
+      child.on("exit", (code) => process.exit(code ?? 0));
+      for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => child.kill(sig));
+      break;
+    }
     case "check": {
       // Pass-through: check.ts owns its own flags (--format, --fail-on, --no-write).
       const r = spawnSync(

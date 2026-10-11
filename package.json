@@ -50,7 +50,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "prepublishOnly": "npm run typecheck && npm test",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "watch": "tsx collectors/watch.ts"
   },
   "dependencies": {
     "next": "15.5.27",
