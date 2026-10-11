@@ -35,7 +35,7 @@ describe("project-root discovery from ~/.claude.json", () => {
 
   it("scans the discovered project without any CLI argument", () => {
     const projects = snapshot.instances.filter((i) => i.scope === "project");
-    expect(projects.map((i) => i.platform).sort()).toEqual(["claude-code", "gemini-cli"]);
+    expect(projects.map((i) => i.platform).sort()).toEqual(["claude-code", "codex-cli", "gemini-cli"]);
     for (const p of projects) expect(p.projectPath).toBe(m.project);
   });
 

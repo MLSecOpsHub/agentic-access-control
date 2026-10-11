@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { createHash } from "crypto";
+import { parse as parseToml } from "smol-toml";
 
 // Shared collector plumbing. SR1: everything here is read-only — the only
 // write API in the collector tree lives in collect.ts and targets
@@ -11,12 +12,18 @@ const MAX_CONFIG_BYTES = 5 * 1024 * 1024; // T9: parser-bomb cap
 // SR2: parse issues carry FIXED CODES only — never exception message text.
 // Node's JSON.parse errors echo fragments of the offending input, and V8's
 // truncation defeats pattern-based redaction (review finding F3, probe P1).
-export type ParseIssueCode = "ERR_SYMLINK" | "ERR_SIZE_CAP" | "ERR_JSON_SYNTAX" | "ERR_NOT_OBJECT";
+export type ParseIssueCode =
+  | "ERR_SYMLINK"
+  | "ERR_SIZE_CAP"
+  | "ERR_JSON_SYNTAX"
+  | "ERR_TOML_SYNTAX"
+  | "ERR_NOT_OBJECT";
 
 export const PARSE_ISSUE_TEXT: Record<ParseIssueCode, string> = {
   ERR_SYMLINK: "symlinked config skipped (T4 path-traversal guard)",
   ERR_SIZE_CAP: `config exceeds ${MAX_CONFIG_BYTES} byte cap, skipped (T9)`,
   ERR_JSON_SYNTAX: "config is not parseable JSON",
+  ERR_TOML_SYNTAX: "config is not parseable TOML",
   ERR_NOT_OBJECT: "top-level JSON is not an object",
 };
 
@@ -25,11 +32,8 @@ export interface ParseIssue {
   code: ParseIssueCode;
 }
 
-/** Read + JSON-parse a config file. Missing file → undefined; malformed → issue. */
-export async function readJsonConfig(
-  file: string,
-  issues: ParseIssue[],
-): Promise<Record<string, unknown> | undefined> {
+/** Guarded read of a config file's text (symlink, type, size). Missing → undefined. */
+async function readConfigText(file: string, issues: ParseIssue[]): Promise<string | undefined> {
   let stat;
   try {
     stat = await fs.lstat(file); // lstat: never follow a symlinked config (T4)
@@ -45,8 +49,32 @@ export async function readJsonConfig(
     issues.push({ file, code: "ERR_SIZE_CAP" });
     return undefined;
   }
+  return fs.readFile(file, "utf8");
+}
+
+/** Read + TOML-parse a config file (Codex CLI). Malformed → fixed code, no parser text (SR2). */
+export async function readTomlConfig(
+  file: string,
+  issues: ParseIssue[],
+): Promise<Record<string, unknown> | undefined> {
+  const raw = await readConfigText(file, issues);
+  if (raw === undefined) return undefined;
   try {
-    const raw = await fs.readFile(file, "utf8");
+    return parseToml(raw) as Record<string, unknown>; // a TOML document is always a table
+  } catch {
+    issues.push({ file, code: "ERR_TOML_SYNTAX" }); // exception text intentionally discarded
+    return undefined;
+  }
+}
+
+/** Read + JSON-parse a config file. Missing file → undefined; malformed → issue. */
+export async function readJsonConfig(
+  file: string,
+  issues: ParseIssue[],
+): Promise<Record<string, unknown> | undefined> {
+  const raw = await readConfigText(file, issues);
+  if (raw === undefined) return undefined;
+  try {
     const parsed = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       issues.push({ file, code: "ERR_NOT_OBJECT" });

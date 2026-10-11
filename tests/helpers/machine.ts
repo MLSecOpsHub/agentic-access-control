@@ -148,6 +148,50 @@ export async function buildMachine(): Promise<Machine> {
     }),
   );
 
+  // Codex CLI tiers (docs/collectors.md §3): bypass combination at user level,
+  // a trusted project overriding sandbox_mode, secrets in args/url/headers/env.
+  await write(
+    path.join(home, ".codex", "config.toml"),
+    [
+      `approval_policy = "never"`,
+      `sandbox_mode = "danger-full-access"`,
+      `web_search = "live"`,
+      ``,
+      `[shell_environment_policy]`,
+      `inherit = "all"`,
+      ``,
+      `[projects."${project}"]`,
+      `trust_level = "trusted"`,
+      ``,
+      `[mcp_servers.github]`,
+      `command = "npx"`,
+      `args = ["-y", "@modelcontextprotocol/server-github", "--token", "${SECRETS.slack}"]`,
+      `env = { GITHUB_TOKEN = "${SECRETS.github}" }`,
+      ``,
+      `[mcp_servers.remote]`,
+      `url = "https://mcp.example.com/mcp?token=${SECRETS.keyedValue}"`,
+      `bearer_token_env_var = "REMOTE_API_TOKEN"`,
+      `http_headers = { Authorization = "Bearer ${SECRETS.bearerToken}" }`,
+      `enabled = false`,
+      ``,
+    ].join("\n"),
+  );
+  await write(
+    path.join(project, ".codex", "config.toml"),
+    [
+      `sandbox_mode = "workspace-write"`,
+      ``,
+      `[sandbox_workspace_write]`,
+      `network_access = true`,
+      ``,
+      `[mcp_servers.db]`,
+      `command = "uvx"`,
+      `args = ["postgres-mcp"]`,
+      `env = { PGPASSWORD = "${SECRETS.keyedValue}" }`,
+      ``,
+    ].join("\n"),
+  );
+
   // Malformed JSON that embeds a secret: the persisted finding must be a fixed
   // error code, never parser output echoing these bytes (probe P1).
   await write(
