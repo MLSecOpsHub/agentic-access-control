@@ -26,6 +26,18 @@ export function writeToolFor(platform: Platform): string | null {
   return WRITE_TOOL[platform];
 }
 
+// The tool that reads arbitrary files, by vendor-documented name.
+const READ_TOOL: Record<Platform, string | null> = {
+  "claude-code": "Read",
+  "gemini-cli": "read_file",
+  "codex-cli": null,
+  "generic-mcp": null,
+};
+
+export function readToolFor(platform: Platform): string | null {
+  return READ_TOOL[platform];
+}
+
 export interface ReachabilityResult {
   effect: Effect;
   rule: PermissionRule;

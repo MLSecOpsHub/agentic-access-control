@@ -8,7 +8,7 @@ import type {
   Severity,
   ThreatScenario,
 } from "./schema";
-import { resolveToolReachability, shellToolFor, writeToolFor } from "./precedence";
+import { readToolFor, resolveToolReachability, shellToolFor, writeToolFor } from "./precedence";
 
 export const SCENARIO_CAVEAT =
   "These are configured declarations composed by AgentLens, not observed enforcement or an observed attack. The platform's own evaluator is ground truth (SR4).";
@@ -406,4 +406,81 @@ const S4: CatalogEntry = {
   },
 };
 
-export const CATALOG: CatalogEntry[] = [S1, S2, S3, S4];
+// A read-tool matcher that reaches beyond the project: home, dotfile and
+// credential-store paths where agent configs (and their env blocks) live.
+const HOME_OR_CONFIG_PATH = /(~|\$HOME|\/home\/|\/Users\/|\/root\/|\.ssh|\.aws|\.gnupg|\.config|\.env\b|\.claude|\.gemini|\.codex|\.mcp\.json)/;
+
+const S5: CatalogEntry = {
+  scenarioId: "S5-credential-concentration",
+  evaluate(inst, ctx) {
+    const h4For = (s: McpServer) =>
+      ctx.findings.find(
+        (f) =>
+          f.heuristicId === "H4" &&
+          f.instanceId === inst.id &&
+          f.sourceFile === s.sourceFile &&
+          f.title.includes(`"${s.name}"`),
+      );
+    const credServers = ctx.mcpServers
+      .filter((s) => s.instanceId === inst.id && s.enablement !== "disabled" && h4For(s))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (credServers.length < 2) return null;
+
+    const readTool = readToolFor(inst.platform);
+    if (!readTool) return null;
+    const reach = resolveToolReachability(inst.permissionRules, readTool);
+    let rule: PermissionRule | null = null;
+    if (reach?.effect === "allow") rule = reach.rule;
+    else if (reach?.effect !== "deny") {
+      rule =
+        inst.permissionRules
+          .filter((r) => r.effect === "allow" && r.tool === readTool && HOME_OR_CONFIG_PATH.test(r.matcher))
+          .sort((a, b) => a.precedenceRank - b.precedenceRank || a.matcher.localeCompare(b.matcher))[0] ?? null;
+    }
+    if (!rule) return null;
+
+    const preconditions: Precondition[] = credServers.slice(0, 2).map((s) => {
+      const h4 = h4For(s)!;
+      return {
+        kind: "mcp-server" as const,
+        claim: `MCP server "${s.name}" is configured with credential environment keys${
+          s.enablement === null ? ", with no recorded approval choice" : ""
+        }`,
+        evidence: h4.evidence,
+        sourceFile: h4.sourceFile,
+        refId: h4.id,
+        confidence: "declared" as const,
+      };
+    });
+    preconditions.push({
+      kind: "permission-rule",
+      claim: `"${rule.matcher}" allows ${readTool} over home or config paths and no unbounded deny for ${readTool} outranks it`,
+      evidence: `${rule.effect} ${rule.matcher} (${rule.sourceLevel})`,
+      sourceFile: rule.sourceFile,
+      refId:
+        ctx.findings.find(
+          (f) => f.heuristicId === "H2" && f.instanceId === inst.id && f.sourceFile === rule.sourceFile,
+        )?.id || null,
+      confidence: "declared",
+    });
+    const severanceHints: SeveranceHint[] = preconditions.map((_, i) => ({
+      preconditionIndex: i,
+      text: `Removing the configuration element at the file above severs this path.`,
+    }));
+    const anyNull = credServers.slice(0, 2).some((s) => s.enablement === null);
+    return {
+      id: `S5-credential-concentration:${inst.id}:0`,
+      scenarioId: "S5-credential-concentration",
+      title: `Configured declarations permit a path: ${readTool} over home/config paths → ${credServers.length} credential-bearing MCP server configs (${inst.id})`,
+      severity: anyNull ? downgradeOneLevel("medium") : "medium",
+      confidence: "declared",
+      preconditions,
+      categories: { owaspAsi: ["ASI03"], stride: ["I"] },
+      severanceHints,
+      instanceId: inst.id,
+      caveat: SCENARIO_CAVEAT,
+    };
+  },
+};
+
+export const CATALOG: CatalogEntry[] = [S1, S2, S3, S4, S5];

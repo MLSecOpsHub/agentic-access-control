@@ -594,6 +594,70 @@ describe("S4 — unreviewed project takeover", () => {
   });
 });
 
+const credServer = (name: string, overrides: Partial<McpServer> = {}) =>
+  makeServer({ name, envKeys: [`${name.toUpperCase()}_TOKEN`], enablement: "enabled", sourceFile: "/tmp/fixture/.claude.json", ...overrides });
+const s5Instance = (overrides: Partial<AgentInstance> = {}) =>
+  makeInstance({
+    permissionRules: [makeRule({ effect: "allow", matcher: "Read", tool: "Read", sourceLevel: "user", precedenceRank: 14 })],
+    ...overrides,
+  });
+
+describe("S5 — credential concentration", () => {
+  it("fires with two credential-bearing servers and an unbounded Read allow", () => {
+    const [s] = withHeuristics([s5Instance()], [credServer("github"), credServer("linear")]).filter(
+      (x) => x.scenarioId === "S5-credential-concentration",
+    );
+    expect(s).toBeDefined();
+    expect(s.severity).toBe("medium");
+    expect(s.preconditions.map((p) => p.kind)).toEqual(["mcp-server", "mcp-server", "permission-rule"]);
+    expect(s.preconditions[0].refId).toMatch(/^H4:/);
+    expect(s.categories).toEqual({ owaspAsi: ["ASI03"], stride: ["I"] });
+    assertNoBannedPhrases(s.title, "S5 title");
+    for (const p of s.preconditions) assertNoBannedPhrases(p.claim, "S5 claim");
+  });
+
+  it("accepts a scoped Read allow that points at home/config paths, and Gemini's read_file", () => {
+    const scoped = s5Instance({
+      permissionRules: [makeRule({ effect: "allow", matcher: "Read(~/.aws/**)", tool: "Read", sourceLevel: "user", precedenceRank: 14 })],
+    });
+    const gemini = s5Instance({
+      id: "gemini-cli:user",
+      platform: "gemini-cli",
+      permissionRules: [makeRule({ effect: "allow", matcher: "read_file", tool: "read_file", sourceLevel: "user", precedenceRank: 8 })],
+    });
+    const servers = [credServer("github"), credServer("linear"), credServer("gh", { instanceId: "gemini-cli:user" }), credServer("db", { instanceId: "gemini-cli:user" })];
+    const ids = withHeuristics([scoped, gemini], servers).filter((x) => x.scenarioId === "S5-credential-concentration").map((x) => x.instanceId);
+    expect(ids.sort()).toEqual(["claude-code:user", "gemini-cli:user"]);
+  });
+
+  it("caps severity to low when a credential server has no recorded approval", () => {
+    const [s] = withHeuristics([s5Instance()], [credServer("github", { enablement: null }), credServer("linear")]).filter(
+      (x) => x.scenarioId === "S5-credential-concentration",
+    );
+    expect(s.severity).toBe("low");
+    expect(s.preconditions[0].claim).toContain("no recorded approval choice");
+  });
+
+  it("does not fire one precondition short", () => {
+    const cases: Array<[AgentInstance, McpServer[]]> = [
+      // only one credential-bearing server
+      [s5Instance(), [credServer("github"), makeServer({ name: "plain", envKeys: [], enablement: "enabled" })]],
+      // second server disabled
+      [s5Instance(), [credServer("github"), credServer("linear", { enablement: "disabled" })]],
+      // Read allow scoped to the project, not home/config
+      [s5Instance({ permissionRules: [makeRule({ effect: "allow", matcher: "Read(./src/**)", tool: "Read", sourceLevel: "user", precedenceRank: 14 })] }), [credServer("github"), credServer("linear")]],
+      // unbounded deny outranks
+      [s5Instance({ permissionRules: [
+        makeRule({ effect: "allow", matcher: "Read", tool: "Read", sourceLevel: "local", precedenceRank: 12 }),
+        makeRule({ effect: "deny", matcher: "Read", tool: "Read", sourceLevel: "user", precedenceRank: 4 }),
+      ] }), [credServer("github"), credServer("linear")]],
+    ];
+    for (const [inst, servers] of cases) {
+      expect(withHeuristics([inst], servers).filter((x) => x.scenarioId === "S5-credential-concentration")).toEqual([]);
+    }
+  });
+});
+
 describe("reachability predicate agreement with vendor-conformance", () => {
   it("deny Bash outranks allow Bash per precedenceRank", () => {
     const bashAllow = makeRule({
