@@ -6,13 +6,14 @@ A concise tour of what the proof-of-concept does today and how to exercise every
 
 | Feature | What it does | Where |
 |---|---|---|
-| Agent instance inventory | Discovers agent installs as (platform × scope) instances — Claude Code and Gemini CLI, plus generic `mcp.json` manifests; Codex CLI is a spec'd stub | Overview |
+| Agent instance inventory | Discovers agent installs as (platform × scope) instances — Claude Code, Gemini CLI and Codex CLI, plus generic `mcp.json` manifests | Overview |
 | Configured permissions | Merged allow/ask/deny declarations per instance, ordered by the documented evaluation semantics (deny → ask → allow across all tiers), each with source file + settings level (managed/user/project/local) | `/agents/<id>` |
 | MCP server inventory | Every configured server: transport, command/URL, env **key names** (values redacted at collection), declaring file | `/mcp` |
 | Sandbox & hook posture | Sandbox flags (warning-styled when disabled/escapable) and redacted hook command previews | `/agents/<id>` |
 | Risk findings | Heuristics: bypass modes, wildcard allows, `npx -y`/`uvx`-launched servers, credential env keys, disabled sandboxes, pipe-to-shell hooks | `/findings` |
 | Threat scenarios | Composes collected posture into cited attack-path scenarios (v1: S1 supply-chain → exfil, S2 gating collapse); each precondition cites its source file, with OWASP ASI/STRIDE tags and severance hints | `/threat-model`, `/agents/<id>` |
 | Snapshot drift | Rule/server-level diff between the two newest snapshots | Overview banner |
+| Headless check | `agentlens check [roots] --format json\|sarif --fail-on <severity>` — same read-only collection, report on stdout, exit 1 at or above the threshold; SARIF loads into code-scanning UIs | CLI |
 | Share card | Counts-only summary (instances per platform, declarations, servers, findings, scenario ids) with a copy button — no paths, matchers, names or hostnames | `/share` |
 | Integrity & honesty rails | SHA-256 tamper-evidence per snapshot, snapshot-age display, permanent "interpretation, not enforcement" banner | every page |
 
@@ -81,12 +82,21 @@ grep -E 'sk-[A-Za-z0-9]|AKIA|ghp_|Bearer [A-Za-z0-9]' data/snapshots/*.json
 ss -tln | grep 3000
 ```
 
+### 6. Headless check (CI-style)
+
+```bash
+npx tsx collectors/check.ts --format sarif --fail-on high > agentlens.sarif   # or: agentlens check …
+echo "exit $?"   # 1 when any finding/scenario is high or critical
+```
+
+The report is built from the same redacted snapshot the dashboard renders and goes to stdout only; `--no-write` skips the snapshot write. The dashboard refuses requests whose `Host` is not loopback (try `curl -H 'Host: evil.example' http://127.0.0.1:3000/` → 403) and sends a nonce-based CSP on every page.
+
 Type-safety check for contributors: `npm run typecheck`.
 
 ## Known PoC limits
 
-- The Codex CLI collector is a stub (spec in [collectors.md](collectors.md) §3) — its TOML configs are not yet read.
-- Gemini CLI: TOML policy files, `trustedFolders.json` and the system-defaults file are not read; the YOLO flag is invisible to any filesystem collector. Each is stated as a mapping note on the instance.
+- Codex CLI: profile files (`--profile`), `requirements.toml` / managed policies and execution-policy rules are not read; Codex has no per-tool allow/deny list, so its instances carry no permission rows — the notes say so.
+- Gemini CLI: TOML policy files and the system-defaults file are not read; the YOLO flag is invisible to any filesystem collector. Trusted-folder rules are surfaced verbatim. Each gap is stated as a mapping note on the instance.
 - Session-scoped permission grants stored outside settings files are not collected yet.
 - Rendered precedence is an interpretation (SR4) — the platform's own evaluator remains ground truth.
 - Redaction is pattern-based; novel secret formats can slip through (bias is to over-redact).
@@ -95,9 +105,10 @@ Type-safety check for contributors: `npm run typecheck`.
 
 ```
 app/            dashboard pages (Overview, /agents/[id], /mcp, /findings, /threat-model, /share, /live)
-bin/            `agentlens` CLI (scan | collect | serve) — the npx entry point
-collectors/     read-only collectors + `npm run collect` orchestrator
-lib/            zod schema, redaction, heuristics, scenario catalog + engine, hashing, snapshot loader
+bin/            `agentlens` CLI (scan | collect | serve | check) — the npx entry point
+collectors/     read-only collectors, shared pipeline, `collect` and `check` entry points
+lib/            zod schema, redaction, heuristics, scenario catalog + engine, hashing, snapshot loader, SARIF/JSON report, HTTP hardening
+middleware.ts   loopback-only Host validation + CSP/security headers (T16)
 data/fixtures/  bundled sample snapshot (committed)
 data/snapshots/ your machine's snapshots (gitignored)
 docs/           specs, architecture, threat model, this guide

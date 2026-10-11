@@ -1,6 +1,6 @@
 # AgentLens — Threat Scenario Engine (spec)
 
-Status: **v1-static implemented 2026-10-09** — schema (`ThreatScenarioSchema` in `lib/schema.ts`, confidence fields present per §6), engine (`lib/threat-scenarios.ts`), catalog with **S1–S4** (`lib/scenario-catalog.ts`; S3/S4 added 2026-10-09), precedence-aware reachability predicate (`lib/precedence.ts`), `/threat-model` page, per-instance section and the counts-only share card (§8.4), tests on emitted objects **and rendered pages** (`tests/scenario-catalog.test.ts`, `tests/sr3-crawl.test.ts`). S5, `declared+observed` confidence (Step 6 remodel) and the plugin (§8.3) are **not** implemented. This document is the design contract; when implementation diverges, fix one or the other before shipping.
+Status: **v1-static implemented 2026-10-09** — schema (`ThreatScenarioSchema` in `lib/schema.ts`, confidence fields present per §6), engine (`lib/threat-scenarios.ts`), catalog with **S1–S5** (`lib/scenario-catalog.ts`; S3/S4 added 2026-10-09, S5 2026-10-11), precedence-aware reachability predicate (`lib/precedence.ts`), `/threat-model` page, per-instance section and the counts-only share card (§8.4), tests on emitted objects **and rendered pages** (`tests/scenario-catalog.test.ts`, `tests/sr3-crawl.test.ts`). `declared+observed` confidence (Step 6 remodel) and the plugin (§8.3) are **not** implemented. This document is the design contract; when implementation diverges, fix one or the other before shipping.
 
 ## 1. Purpose and positioning
 
@@ -72,7 +72,7 @@ Severity rule: base severity per scenario, **capped one level below the base whe
 | S2 gating collapse | `defaultMode` bypass (H1) + any MCP server or hook present | critical | ASI03, ASI05; E |
 | S3 hook injection chain *(implemented)* | Hook piping remote content to shell (H7) + effective `allow` on the platform's shell or write tool (`Bash`/`Write`, `run_shell_command`/`write_file`) + sandbox disabled (H6) | high | ASI02, ASI05; T/E |
 | S4 unreviewed project takeover *(implemented)* | Project-tier or local-tier `allow` on a shell/write-class tool, not outranked by an unbounded deny, + an MCP server declared in a file under the project root (`.mcp.json`, `.gemini/settings.json`) with `enablement: null` (team-writable config, no recorded approval) | high (no null cap, see above) | ASI03, ASI05; S/E |
-| S5 credential concentration | ≥2 servers with credential env keys (H4) + any effective allow on a file-read tool covering home/config paths | medium | ASI03; I |
+| S5 credential concentration *(implemented)* | ≥2 non-disabled servers with credential env keys (H4) + an effective allow on the platform's read tool (`Read` / `read_file`) that is unbounded, or scoped to home/dotfile/credential-store paths, and not outranked by an unbounded deny | medium (null cap applies) | ASI03; I |
 
 Catalog entries must each ship with: a fixture machine that triggers it, a fixture one-precondition-short that must **not** trigger it, and a wording test (§9).
 
@@ -120,7 +120,7 @@ The roadmap parking-lot item, promoted: a plugin whose skill + SessionStart hook
 ## 11. Sequencing & acceptance
 
 1. ~~Land ThreatScenario schema (with confidence fields) + engine + S1/S2 + `/threat-model` page + tests.~~ **Done 2026-10-09** (preceded the Step 6 remodel per §6 decision; per-instance surface landed with it).
-2. ~~S3–S4~~ **Done 2026-10-09**, with the rendered-page wording test and the share card (8.4). S5 remains.
+2. ~~S3–S5~~ **Done** (S3/S4 2026-10-09, S5 2026-10-11), with the rendered-page wording test and the share card (8.4). Scenarios also ship in `agentlens check` output (JSON and SARIF) with the caveat on every result.
 3. Step 6 remodel lands → `declared+observed` confidence via the observed store.
 4. Plugin (8.3) last — it is a consumer, and it triggers the T14 threat-model update as a landing condition.
 

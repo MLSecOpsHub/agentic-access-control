@@ -1,6 +1,6 @@
 # AgentLens — what are the AI agents on this machine allowed to do?
 
-AgentLens finds the AI coding agents installed on a machine — **Claude Code, Gemini CLI**, plus generic `mcp.json` manifests — reads their permission-relevant configuration **read-only**, and shows in a local dashboard what they are *configured* to be allowed to do: every allow/ask/deny declaration with the file it came from, every MCP server, sandbox and hook posture, risk findings, composed **threat scenarios**, and drift between snapshots.
+AgentLens finds the AI coding agents installed on a machine — **Claude Code, Gemini CLI, Codex CLI**, plus generic `mcp.json` manifests — reads their permission-relevant configuration **read-only**, and shows in a local dashboard what they are *configured* to be allowed to do: every allow/ask/deny declaration with the file it came from, every MCP server, sandbox and hook posture, risk findings, composed **threat scenarios**, and drift between snapshots.
 
 It never enforces, never edits a config, never sits in the request path, and never sends data anywhere. Every screen says so.
 
@@ -13,7 +13,7 @@ npm run collect      # read-only scan: user configs + cwd + every project Claude
 npm run dev          # dashboard on http://127.0.0.1:3000 (loopback only)
 ```
 
-Or, once the npm package is published: `npx @mlsecopshub/agentlens scan` does both (snapshots land in `~/.local/share/agentlens`; `--open` launches a browser).
+Or, once the npm package is published: `npx @mlsecopshub/agentlens scan` does both (snapshots land in `~/.local/share/agentlens`; `--open` launches a browser). For CI: `agentlens check --format sarif --fail-on high` prints a SARIF report and exits 1 at or above the threshold.
 
 What to look at first:
 
@@ -68,4 +68,4 @@ It targets the whitespace the research identifies: individual/prosumer tooling (
 
 ## Security posture in one paragraph
 
-Collectors open files read-only from an allowlist of known config locations (SR1) and redact secret-shaped values before anything touches disk (SR2). The dashboard binds to 127.0.0.1 and makes zero outbound requests (SR3) — a map of your machine's agent attack surface is itself sensitive. Every permission view carries the caveat that it shows *configured declarations*, not proof of enforcement (SR4). Snapshots are content-hashed for tamper evidence, verified on the raw bytes before validation, and drift only renders between two verified snapshots (SR5). Each requirement is backed by an executable test in `tests/` (`npm test`, enforced in CI). Details: [docs/security-architecture.md](docs/security-architecture.md); hardening plan: `local/hardening-roadmap.md`.
+Collectors open files read-only from an allowlist of known config locations (SR1) and redact secret-shaped values before anything touches disk (SR2). The dashboard binds to 127.0.0.1, refuses non-loopback `Host` headers (DNS-rebinding defence), sends a nonce-based CSP on every page, and makes zero outbound requests (SR3) — a map of your machine's agent attack surface is itself sensitive. Every permission view carries the caveat that it shows *configured declarations*, not proof of enforcement (SR4). Snapshots are content-hashed for tamper evidence, verified on the raw bytes before validation, and drift only renders between two verified snapshots (SR5). Each requirement is backed by an executable test in `tests/` (`npm test`, enforced in CI). Details: [docs/security-architecture.md](docs/security-architecture.md); hardening plan: `local/hardening-roadmap.md`.

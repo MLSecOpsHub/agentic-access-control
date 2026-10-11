@@ -32,7 +32,7 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 
 | # | Feature | Notes |
 |---|---|---|
-| F1 | Agent instance inventory | Platforms: Claude Code (full), Gemini CLI (settings tiers, tools allow/exclude, approval mode, sandbox, MCP, hooks — [collectors.md](collectors.md) §4), generic `mcp.json`; Codex CLI spec'd, stubbed |
+| F1 | Agent instance inventory | Platforms: Claude Code (full), Gemini CLI ([collectors.md](collectors.md) §4), Codex CLI (approval/sandbox gates, trust-gated project config, MCP — §3), generic `mcp.json` |
 | F2 | Configured-permission view | Rules table per instance: effect, matcher, source file, settings level — ordered by documented evaluation semantics (deny → ask → allow across tiers), still declarations rather than proof of enforcement (SR4) |
 | F3 | MCP server inventory | Env **key names only** — values redacted at collection (SR2) |
 | F4 | Sandbox & hook posture | Sandbox enabled/escape flags; hook event + truncated command preview |
@@ -42,6 +42,8 @@ Positioning per the landscape taxonomy: **deliberately L2 (observe-only)**. We a
 | F8 | Threat scenarios | Catalog S1–S4 composing findings into cited paths with severance hints ([threat-scenarios.md](threat-scenarios.md)) |
 | F9 | Share card | Counts-only pasteable summary (`/share`), no identifying strings by tested contract |
 | F10 | CLI | `npx @mlsecopshub/agentlens scan` — collect + serve, data outside the package |
+| F11 | Headless check | `agentlens check --format json\|sarif --fail-on <severity>` for CI; stdout only |
+| F12 | Dashboard hardening | Loopback-only Host validation (T16), nonce CSP and security headers on every response |
 
 ## 6. Non-goals (v1) and permanent non-goals
 

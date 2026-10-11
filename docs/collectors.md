@@ -25,7 +25,9 @@ Collectors are read-only filesystem readers. Shared contract, then one section p
 
 **Rule evaluation semantics (per first-party docs, verified 2026-08-13; engine reimplemented in hardening Step 5):** permission rule lists are *merged across all settings files* and evaluated globally as `deny → ask → allow` — "the first match in that order determines the outcome, and rule specificity doesn't change the order." A deny in any tier wins over an allow in any other tier. The stored `precedenceRank` encodes exactly this: effect-first (deny < ask < allow), with tier only breaking ties within an effect; the UI's evaluation-order view sorts by it. Tier precedence applies to **single-value settings** (`defaultMode`, sandbox fields): managed > command line > local project > shared project > user, merged **per-field** — each field is taken from the highest-precedence file that defines it, with the contributing file recorded (`defaultModeSourceFile`, `sandbox.fieldSources`). Conformance fixtures for both semantics live in `tests/vendor-conformance.test.ts`.
 
-**Known uncollected inputs (SR4 — declared, not silently missing):** folder/workspace trust state (`hasTrustDialogAccepted` in `~/.claude.json` project entries) and session-scoped "always allow" grants are not collected yet (roadmap Phase 1.5); `~/.claude.json` is read for MCP data and project-root discovery only — its legacy per-project `allowedTools` lists are not read; command-line flag overrides (`flag` tier) are invisible to a filesystem collector by nature.
+**Trust state and legacy grants (collected as instance notes since 2026-10-11):** each project instance states the folder-trust dialog outcome recorded in its `~/.claude.json` project entry (`hasTrustDialogAccepted` true / false / no decision) and, when present, the legacy per-project `allowedTools` list (count + redacted preview) — surfaced for review, **not** merged into declarations, because current versions do not honour it. The entries' usage/cost telemetry keys are never read.
+
+**Known uncollected inputs (SR4 — declared, not silently missing):** session-scoped grants recorded outside settings files (if any) and command-line flag overrides (`flag` tier), which are invisible to a filesystem collector by nature.
 
 ### Extracted per file
 
@@ -40,11 +42,33 @@ Collectors are read-only filesystem readers. Shared contract, then one section p
 - One `user`-scope instance from user+managed files.
 - One `project`-scope instance per resolved project root (git root of a scanned directory) containing `.claude/`, `.mcp.json`, or a matching `~/.claude.json` project entry, merging managed+user+project+local (a project instance shows the *full* effective set, not just project-file rules).
 
-## 3. Codex CLI collector (`codex-cli`) — spec'd, stubbed (not yet read)
+## 3. Codex CLI collector (`codex-cli`) — implemented 2026-10-11
 
-- Files: `~/.codex/config.toml`; project `requirements.toml` where present.
-- Extract: approval policy (map `untrusted`→`ask`-dominant, `on-failure`/`never` noted on the instance), sandbox mode (`read-only`, `workspace-write`, `danger-full-access` → SandboxConfig + H1 when `danger-full-access`), network access flag and domain allowlist, MCP servers from `mcp_servers` tables.
-- Mapping loss: Codex has no per-rule allow/deny list; we synthesize at most coarse rules from sandbox mode and record the native construct in `notes`.
+Vendor docs verified 2026-10-11 (Codex configuration reference and sample `config.toml`). TOML is parsed with `smol-toml` 1.9.1 (exact pin; zero dependencies, no install scripts — T10 review in [security-architecture.md](security-architecture.md) §4); malformed files yield the fixed code `ERR_TOML_SYNTAX`, never parser text (SR2).
+
+### Files read
+
+| Level | Path | Notes |
+|---|---|---|
+| `user` | `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`) | |
+| `project` | `<scanned dir>/.codex/config.toml` | Loaded by the vendor **only** when the user config records `[projects."<dir>"] trust_level = "trusted"`; AgentLens merges it only in that case and otherwise lists it as declared-but-inactive |
+
+Not read (declared as notes): profile files `$CODEX_HOME/<name>.config.toml` (apply only via `--profile`, flag tier — the count is stated), `requirements.toml` / cloud-managed policies (constrain from above), execution-policy rules.
+
+### Mapping
+
+| Codex setting | AgentLens field | Semantics |
+|---|---|---|
+| `approval_policy` (`on-request` \| `never` \| granular table; `on-failure` deprecated, `untrusted` unsupported) | `defaultMode` | `never` + `sandbox_mode = "danger-full-access"` → `defaultMode = "bypass (…)"` → **H1** (the vendor's `--dangerously-bypass-approvals-and-sandbox` combination). `never` alone → note "the sandbox is the only remaining gate" |
+| `sandbox_mode` (`read-only` \| `workspace-write` \| `danger-full-access`), `[sandbox_workspace_write] network_access / writable_roots` | `SandboxConfig` (`enabled = mode !== danger-full-access`, per-field provenance) | `danger-full-access` → **H6**; network access and writable roots in `notes` |
+| `[mcp_servers.<name>]` stdio (`command`, `args`, `env`) / HTTP (`url`, `bearer_token_env_var`, `http_headers`, `env_http_headers`) | `McpServer[]` | Env **key names** plus the bearer-token env var name and `env_http_headers` env var names (all names, never values — SR2); `http_headers` values are never read |
+| `enabled = false/true` | `McpServer.enablement` | absent → `null` (no recorded choice) |
+| `default_tools_approval_mode`, `enabled_tools` / `disabled_tools` | note | Per-server approval default and server-side tool filters, stated verbatim |
+| `shell_environment_policy.inherit` / `set` | note | Env exposure to shell commands; `set` key names only |
+| `web_search` | note | Stated when not `disabled` |
+| `[projects."<dir>"] trust_level` | note on project instances + merge gating | `trusted` → project file merged; `untrusted` / no record → not merged, stated |
+
+**No per-tool allow/ask/deny list exists in `config.toml`**, so `permissionRules` is empty for Codex instances and the first note on every instance says so (SR4). Conformance fixtures: `tests/codex-collector.test.ts` on the shared fixture machine (SR1/SR2 coverage extends to these files).
 
 ## 4. Gemini CLI collector (`gemini-cli`) — implemented 2026-10-09
 
@@ -58,7 +82,7 @@ Vendor docs verified 2026-10-09 (`docs/reference/configuration.md`, `docs/cli/se
 | `project` | `<scanned dir>/.gemini/settings.json` | Gemini's workspace is the launch directory; no git-root walk-up is documented, so none is done |
 | `user` | `~/.gemini/settings.json` | |
 
-Not read: the system-defaults file (`/etc/gemini-cli/system-defaults.json`, lowest precedence, admin-provided); `~/.gemini/trustedFolders.json`; TOML policy files (`~/.gemini/policies/*.toml`, `/etc/gemini-cli/policies`) — a TOML parser is a new dependency and goes through T10 first. Each is declared on the instance as a mapping note (SR4), not silently missing.
+Also read: `~/.gemini/trustedFolders.json` — the recorded rule for a project folder (or the nearest ancestor rule, flagged as such because inheritance semantics are not re-implemented) is surfaced verbatim as a note on the project instance (2026-10-11). Not read: the system-defaults file (`/etc/gemini-cli/system-defaults.json`, lowest precedence, admin-provided) and TOML policy files (`~/.gemini/policies/*.toml`, `/etc/gemini-cli/policies`; the TOML parser now exists, the policy-engine semantics are the remaining work). Each is declared on the instance as a mapping note (SR4), not silently missing.
 
 ### Mapping (nested v2 keys; legacy flat keys read as fallback when the nested key is absent)
 

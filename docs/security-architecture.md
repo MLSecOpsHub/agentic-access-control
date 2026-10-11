@@ -43,7 +43,7 @@ Collectors must not modify agent configuration or any file outside `data/snapsho
 ### SR2 — Secrets redaction at collection time
 Secret material must never reach the snapshot file, therefore never the DOM.
 - Redaction happens in the collector, before the snapshot object is assembled — not at render time. The Step 4 suite proves this end-to-end against secret-seeded configs; snapshots remain sensitive files regardless (redaction is pattern-based — §5.4).
-- MCP `env` values dropped unconditionally (key names kept — they power heuristic H4). Pattern-based redaction over rule matchers, commands, args, URLs, and hook bodies (patterns in [collectors.md](collectors.md) §1.2, implemented in `lib/redact.ts`). The two gaps found by the 2026-08-13 review (parse-error messages echoing config content; scalar fields bypassing redaction) were **fixed by roadmap Step 2** and are regression-tested by the Step 4 suite.
+- MCP `env` values dropped unconditionally (key names kept — they power heuristic H4; Codex `bearer_token_env_var` and `env_http_headers` contribute env var *names* the same way, and `http_headers` values are never read). Parse failures of JSON **and TOML** files yield fixed codes (`ERR_JSON_SYNTAX`, `ERR_TOML_SYNTAX`, …), never parser text. Pattern-based redaction over rule matchers, commands, args, URLs, and hook bodies (patterns in [collectors.md](collectors.md) §1.2, implemented in `lib/redact.ts`). The two gaps found by the 2026-08-13 review (parse-error messages echoing config content; scalar fields bypassing redaction) were **fixed by roadmap Step 2** and are regression-tested by the Step 4 suite.
 - Bias to over-redaction: a mangled command display is acceptable; a leaked token is not. (Pattern precedent: `l-mb/claude-code-redaction-hooks` from the landscape research.)
 - **Test:** [`tests/sr2-redaction.test.ts`](../tests/sr2-redaction.test.ts) — unit corpus over every pattern class plus an end-to-end collector run over fixture configs seeded with fake secrets (a malformed, secret-bearing JSON file included); asserts none survive into the snapshot and greps the generated snapshot for `sk-`, `AKIA`, `ghp_`/`github_pat_`, `Bearer`, `xox`.
 
@@ -56,6 +56,9 @@ The dashboard aggregates a complete map of the machine's agent attack surface �
 - Dev/prod server binds `127.0.0.1` explicitly (`next dev -H 127.0.0.1`).
 - Zero outbound requests: no analytics, no update checks, no CDN assets, no remote fonts. Everything ships in the repo.
 - Snapshots are gitignored by default; committing one is an explicit user act. The `agentlens` CLI stores them outside the package under `$XDG_DATA_HOME/agentlens` (override: `--data-dir` / `AGENTLENS_DATA_DIR`), never inside an npx install.
+- **Dashboard origin isolation (added 2026-10-11, threat T16):** binding 127.0.0.1 does not stop a malicious web page from reaching the dashboard through a hostname it points at 127.0.0.1 (DNS rebinding) and reading the map as if same-origin. `middleware.ts` therefore serves **loopback `Host` values only** (`127.0.0.1`, `localhost`, `[::1]`, with or without port — `lib/http-security.ts`) and answers everything else with 403; every response carries a per-request-nonce `Content-Security-Policy` (`script-src 'self' 'nonce-…' 'strict-dynamic'`, `connect-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'none'`; no `unsafe-*` in production), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, COOP/CORP `same-origin`, `Cache-Control: no-store`. Pages render no inline style attributes so `style-src 'self'` holds.
+- `agentlens check` (headless JSON/SARIF) prints to stdout only — no new data path.
+- **Test:** [`tests/http-security.test.ts`](../tests/http-security.test.ts) (Host parsing, policy contents) and the SR3 crawl, which sends a rebinding `Host` and expects 403, asserts the headers and a fresh nonce on every page, and that Next.js applied the nonce to its inline scripts.
 - The share card (`/share`) is counts-only by tested contract (threat T15) — the only page whose text is designed to leave the machine.
 - **Test:** [`tests/sr3-egress.test.ts`](../tests/sr3-egress.test.ts) — runs the collector under a preload that records and blocks every network primitive (TCP/TLS/UDP/DNS; unix-socket IPC exempt) and asserts zero attempts; [`tests/sr3-crawl.test.ts`](../tests/sr3-crawl.test.ts) — boots the real dashboard and crawls every reachable page, asserting no `src`/`href`/`srcset`/CSS `url()` points off-machine.
 
@@ -82,12 +85,13 @@ Rendered permission views show *configured declarations* with provenance — not
 | Path traversal via crafted project structure (symlink from a scanned repo → `/etc`, `~/.ssh`) | Allowlisted globs, symlink entries skipped during traversal, depth cap, and a resolved-path prefix check confining the walk to the scanned root (`collectors/util.ts`, Step 5). The claude-code collector's git-root walk-up reads only the fixed `.claude/` settings names at ancestor directories — an existence check per level, never a tree walk |
 | Snapshot poisoning (edit snapshot to hide a finding before a review) | SR5 hash check; findings recomputable from raw rules client-side in a later version |
 | Exfiltration of the aggregated map | SR3: no egress, localhost bind, snapshots gitignored |
-| Dependency supply chain | Minimal direct dependency set (next, react, zod, tsx); lockfile committed. Note: transitive dependencies (esbuild, sharp, fsevents) do carry install scripts — review on every bump |
+| Dependency supply chain | Minimal direct dependency set (next — pinned exactly, react, react-dom, zod, tsx, smol-toml — pinned exactly, zero deps, no install scripts; adopted 2026-10-11 after T10 review); lockfile committed; `npm audit` clean per release. Transitive dependencies (esbuild, sharp, fsevents) carry install scripts — review on every bump |
+| DNS rebinding against the loopback-bound dashboard or OTLP receiver | Loopback-only `Host` validation in `middleware.ts` (T16), CSP `connect-src 'self'`, COOP/CORP same-origin |
 
 ## 5. Explicit non-guarantees
 
 Stated so the product can't oversell itself:
-1. AgentLens cannot see permissions granted *outside* config files (session-scoped "always allow" state stored elsewhere, cloud-side grants) unless a collector spec covers that store.
+1. AgentLens cannot see permissions granted *outside* the files its collectors read (cloud-side grants, flag-tier overrides). Folder-trust decisions and legacy per-project grants in `~/.claude.json`, and Gemini trusted-folder rules, **are** read since 2026-10-11 and stated as notes.
 2. A snapshot is stale the moment it's written; the UI always shows age.
 3. Localhost binding does not defend against other processes/users on the same machine.
 4. Redaction is pattern-based and can miss novel secret formats.
