@@ -51,7 +51,8 @@
     "test": "vitest run",
     "prepublishOnly": "npm run typecheck && npm test",
     "prepack": "npm run build",
-    "watch": "tsx collectors/watch.ts"
+    "watch": "tsx collectors/watch.ts",
+    "qa": "tsx scripts/qa.ts"
   },
   "dependencies": {
     "next": "15.5.27",
