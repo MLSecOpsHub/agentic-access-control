@@ -128,6 +128,11 @@ td code, .meta code, .notice code { background: var(--bg); border: 1px solid var
 .btn { font: inherit; font-size: 13px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
 .btn:hover { background: var(--line); }
 
+.drift-list { margin: 6px 0 0; padding-left: 18px; }
+.h2-link { font-weight: 400; font-size: 13px; }
+.snippet { overflow-x: auto; font-size: 12.5px; line-height: 1.5; margin-bottom: 0; }
+.mt { margin-top: 14px; }
+
 ul.notes { margin: 6px 0 14px; padding-left: 20px; }
 ul.notes li { margin: 4px 0; }
 

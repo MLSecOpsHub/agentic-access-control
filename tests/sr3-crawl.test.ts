@@ -1,4 +1,5 @@
 import { promises as fs } from "fs";
+import http from "http";
 import os from "os";
 import path from "path";
 import { spawn, type ChildProcess } from "child_process";
@@ -16,6 +17,7 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 let server: ChildProcess | null = null;
 const pages = new Map<string, string>(); // route → rendered HTML, filled by the crawl
+const headers = new Map<string, Headers>(); // route → response headers
 
 async function waitForServer(timeoutMs = 90_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -75,6 +77,7 @@ describe("SR3 — rendered pages load no external resources", () => {
       expect(res.status, `GET ${route}`).toBeLessThan(500);
       const html = await res.text();
       pages.set(route, html);
+      headers.set(route, res.headers);
 
       for (const match of html.matchAll(/(?:src|href|srcset|action)\s*=\s*"([^"]*)"/g)) {
         const url = match[1];
@@ -110,6 +113,51 @@ describe("SR3 — rendered pages load no external resources", () => {
     }
     expect(pages.get("/threat-model")).toContain("not observed enforcement or an observed attack");
     expect(pages.get("/threat-model")).toContain("Configured declarations permit a path");
+  });
+
+  // T16 — dashboard origin isolation: a page served to a browser that reached
+  // 127.0.0.1 through an attacker-controlled hostname (DNS rebinding) must be
+  // refused, and every response carries the hardening headers.
+  it("refuses non-loopback Host headers (DNS-rebinding defence)", async () => {
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = http.request(
+        { host: "127.0.0.1", port: PORT, path: "/", method: "GET", headers: { Host: "evil.example.com" } },
+        (res) => { res.resume(); resolve(res.statusCode ?? 0); },
+      );
+      req.on("error", reject);
+      req.end();
+    });
+    expect(status).toBe(403);
+  });
+
+  it("every page carries CSP with a per-request nonce and the hardening headers", () => {
+    expect(headers.size).toBeGreaterThanOrEqual(4);
+    const nonces = new Set<string>();
+    for (const [route, h] of headers) {
+      const csp = h.get("content-security-policy") ?? "";
+      expect(csp, `${route} CSP`).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/=]+' 'strict-dynamic'/);
+      expect(csp, `${route} CSP`).toContain("frame-ancestors 'none'");
+      expect(csp, `${route} CSP`).toContain("connect-src 'self'");
+      expect(csp, `${route} CSP`).toContain("object-src 'none'");
+      nonces.add(/'nonce-([^']+)'/.exec(csp)![1]);
+      expect(h.get("x-content-type-options"), route).toBe("nosniff");
+      expect(h.get("x-frame-options"), route).toBe("DENY");
+      expect(h.get("referrer-policy"), route).toBe("no-referrer");
+      expect(h.get("cross-origin-opener-policy"), route).toBe("same-origin");
+      // Next.js must have picked the nonce up for its inline bootstrap scripts,
+      // otherwise the strict policy would break hydration (HTML documents only —
+      // the crawl also follows the icon link).
+      if ((h.get("content-type") ?? "").includes("text/html")) {
+        expect(pages.get(route)!, `${route} nonce on scripts`).toMatch(/<script[^>]*\snonce="/);
+      }
+    }
+    expect(nonces.size).toBe(headers.size); // fresh nonce per response
+  });
+
+  it("server-rendered pages use no inline style attributes (strict style-src in production)", () => {
+    for (const [route, html] of pages) {
+      expect(html.match(/\sstyle="/g) ?? [], `${route} inline styles`).toEqual([]);
+    }
   });
 
   it("stylesheet ships no remote imports or url() fetches", async () => {

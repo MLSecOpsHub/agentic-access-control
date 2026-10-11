@@ -87,7 +87,7 @@ export default async function Overview() {
                 {drift.addedServers.length} MCP servers added, {drift.removedServers.length} removed,{" "}
                 {drift.changedServers.length} changed.
               </b>
-              <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+              <ul className="drift-list">
                 {drift.addedRules.slice(0, 8).map((r, i) => (
                   <li key={`a${i}`}>
                     added <EffectBadge effect={r.effect} /> <code>{r.matcher}</code> on{" "}
@@ -166,7 +166,7 @@ export default async function Overview() {
       </div>
 
       <h2>
-        Top findings · <Link href="/findings" style={{ fontWeight: 400, fontSize: 13 }}>all {s.findings.length}</Link>
+        Top findings · <Link href="/findings" className="h2-link">all {s.findings.length}</Link>
       </h2>
       <div className="tablewrap">
         <table>

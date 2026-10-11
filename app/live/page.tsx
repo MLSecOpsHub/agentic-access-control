@@ -135,7 +135,7 @@ export default async function LiveActivity() {
           <b>No events received yet.</b> The receiver listens at{" "}
           <code>POST http://127.0.0.1:3000/api/otel/v1/logs</code> (loopback only). Launch Claude
           Code with telemetry directed at it — AgentLens never writes this configuration for you:
-          <pre style={{ overflowX: "auto", fontSize: 12.5, lineHeight: 1.5, marginBottom: 0 }}>
+          <pre className="snippet">
             {LAUNCH_SNIPPET}
           </pre>
         </div>
@@ -188,7 +188,7 @@ export default async function LiveActivity() {
       </div>
 
       {timeline.some((e) => e.kind === "mcp_connection" && !e.mcpConnection?.serverName) && (
-        <p className="meta" style={{ marginTop: 14 }}>
+        <p className="meta mt">
           MCP server names are withheld by Claude Code under the default privacy mode. To identify
           a specific failing server, relaunch once with <code>OTEL_LOG_TOOL_DETAILS=1</code> —
           knowingly: that mode also exports tool arguments (see{" "}
@@ -196,7 +196,7 @@ export default async function LiveActivity() {
         </p>
       )}
 
-      <p className="meta" style={{ marginTop: 14 }}>
+      <p className="meta mt">
         Events are stored locally in <code>data/observed/</code> (gitignored, 7-day retention,
         size-capped) with identity attributes dropped and values redacted at ingest. A decision
         labeled <code>config</code> means Claude Code&apos;s own evaluator decided from
