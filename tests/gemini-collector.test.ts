@@ -86,6 +86,7 @@ describe("Gemini CLI collector", () => {
     expect(user.notes.some((n) => n.startsWith("tools.core"))).toBe(true);
     expect(user.notes.some((n) => n.includes('"gh"') && n.includes("trust: true"))).toBe(true);
     expect(project.notes.some((n) => n.startsWith("Folder trust is enabled"))).toBe(true);
+    expect(project.notes.some((n) => n.includes("recorded rule for this folder") && n.includes("TRUST_FOLDER"))).toBe(true);
     expect(user.notes.some((n) => n.includes("TOML policy files"))).toBe(true);
   });
 

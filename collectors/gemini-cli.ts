@@ -30,9 +30,10 @@ import { mcpServersFrom, parseHooksBlock, parseTool, type CollectorResult } from
 //     `trust: true` bypasses confirmation); `mcp.allowed` / `mcp.excluded` lists.
 //   - `hooks` block shares Claude Code's shape; `security.folderTrust.enabled`
 //     (default true) gates whether project settings and MCP servers load at all.
-//   - NOT collected: TOML policy files (~/.gemini/policies, /etc/gemini-cli/policies
-//     — needs a TOML dependency, T10) and ~/.gemini/trustedFolders.json. Both are
-//     declared on the instance as notes (SR4) instead of silently missing.
+//   - ~/.gemini/trustedFolders.json rules are surfaced verbatim per project
+//     (exact rule, else nearest ancestor rule); TOML policy files
+//     (~/.gemini/policies, /etc/gemini-cli/policies) are still NOT collected
+//     and are declared on the instance as a note (SR4).
 //   Legacy flat keys (coreTools, excludeTools, allowedTools, sandbox,
 //   allowMCPServers, excludeMCPServers, autoAccept) are read when the nested key
 //   is absent, since older installs may not have been migrated.
@@ -149,7 +150,25 @@ function trustedServerNames(data: Record<string, unknown>): string[] {
     .map(([name]) => redact(name));
 }
 
-function notesFrom(files: SettingsFile[], scope: "user" | "project"): string[] {
+// ~/.gemini/trustedFolders.json maps folder paths to a trust choice. The
+// recorded rule is surfaced verbatim; inheritance semantics for ancestor rules
+// are not re-implemented (unverified against vendor source), so an ancestor
+// rule is reported as such and left to the reader.
+function trustRuleNote(trusted: Record<string, unknown> | undefined, abs: string, file: string): string {
+  if (!trusted) return `Folder trust (Gemini): no ${file} found — no recorded trust rules.`;
+  const rules = Object.entries(trusted).filter((e): e is [string, string] => typeof e[1] === "string");
+  const exact = rules.find(([k]) => path.resolve(k) === abs);
+  if (exact) return `Folder trust (Gemini): recorded rule for this folder in ${file}: ${redact(exact[1])}.`;
+  const ancestor = rules
+    .filter(([k]) => abs.startsWith(path.resolve(k) + path.sep))
+    .sort((a, b) => b[0].length - a[0].length)[0];
+  if (ancestor) {
+    return `Folder trust (Gemini): no rule for this folder; nearest ancestor rule in ${file}: ${redact(ancestor[1])} on ${ancestor[0]} — whether it applies here depends on vendor inheritance rules; read as conditional.`;
+  }
+  return `Folder trust (Gemini): no recorded rule for this folder in ${file} — project-tier settings and MCP servers load only after trust is granted.`;
+}
+
+function notesFrom(files: SettingsFile[], scope: "user" | "project", trustNote: string | null = null): string[] {
   const notes: string[] = [];
   for (const sf of files) {
     const core = list(sf.data, "tools.core", "coreTools");
@@ -170,11 +189,12 @@ function notesFrom(files: SettingsFile[], scope: "user" | "project"): string[] {
   }
   const trustSetting = files.map((sf) => get(sf.data, "security.folderTrust.enabled")).find((v) => typeof v === "boolean");
   if (scope === "project") {
-    notes.push(
-      trustSetting === false
-        ? "Folder trust is disabled (security.folderTrust.enabled: false): project-tier settings and MCP servers load unconditionally."
-        : "Folder trust is enabled (vendor default): project-tier settings and MCP servers load only if this folder is trusted. Trust state (~/.gemini/trustedFolders.json) is not collected — read project-tier rows as conditional.",
-    );
+    if (trustSetting === false) {
+      notes.push("Folder trust is disabled (security.folderTrust.enabled: false): project-tier settings and MCP servers load unconditionally.");
+    } else {
+      notes.push("Folder trust is enabled (vendor default): project-tier settings and MCP servers load only if this folder is trusted.");
+      if (trustNote) notes.push(trustNote);
+    }
   }
   notes.push(
     "Gemini CLI has no documented allow/ask/deny evaluation order over these lists; rows are grouped by effect for display (deny = tools.exclude, allow = tools.allowed). TOML policy files (~/.gemini/policies, /etc/gemini-cli/policies) and the YOLO CLI flag are not collected.",
@@ -213,6 +233,8 @@ export async function collectGeminiCli(projectRoots: string[]): Promise<Collecto
     { file: path.join(home, ".gemini", "settings.json"), level: "user" as const },
   ];
   const userSettings = await loadSettings(userCandidates, issues);
+  const trustedFile = path.join(home, ".gemini", "trustedFolders.json");
+  const trusted = await readJsonConfig(trustedFile, issues);
 
   if (userSettings.length > 0) {
     const id = "gemini-cli:user";
@@ -269,7 +291,7 @@ export async function collectGeminiCli(projectRoots: string[]): Promise<Collecto
       permissionRules: settings.flatMap(rulesFrom),
       sandbox: sandboxFrom(settings),
       hooks: settings.flatMap((sf) => parseHooksBlock(sf.data.hooks, sf.file)),
-      notes: notesFrom(settings, "project"),
+      notes: notesFrom(settings, "project", trustRuleNote(trusted, abs, trustedFile)),
     });
     const enablement = enablementFor(settings);
     for (const sf of projectSettings) {

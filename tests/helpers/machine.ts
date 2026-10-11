@@ -191,6 +191,7 @@ export async function buildMachine(): Promise<Machine> {
       ``,
     ].join("\n"),
   );
+  await write(path.join(home, ".gemini", "trustedFolders.json"), JSON.stringify({ [project]: "TRUST_FOLDER" }));
 
   // Malformed JSON that embeds a secret: the persisted finding must be a fixed
   // error code, never parser output echoing these bytes (probe P1).

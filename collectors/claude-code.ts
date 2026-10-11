@@ -272,6 +272,33 @@ export async function discoverProjectRoots(): Promise<string[]> {
   return [...out].sort();
 }
 
+// ~/.claude.json project entries also record the folder-trust dialog outcome
+// and, on older installs, a per-project `allowedTools` list. Both become
+// instance notes: trust gates project-sourced configuration in the vendor's
+// own flow, and legacy grants must not be merged into declarations that
+// current versions ignore (SR4). Never read the entries' usage/cost telemetry.
+function trustNotesFrom(entries: Array<Record<string, unknown>>, file: string): string[] {
+  const notes: string[] = [];
+  const accepted = entries.map((e) => e.hasTrustDialogAccepted).find((v) => typeof v === "boolean");
+  if (accepted === true) {
+    notes.push(`Folder trust: accepted for this project (hasTrustDialogAccepted: true in ${file}).`);
+  } else if (accepted === false) {
+    notes.push(
+      `Folder trust: not accepted for this project (hasTrustDialogAccepted: false in ${file}) — Claude Code gates project-sourced configuration behind its trust dialog; read project-tier rows as conditional.`,
+    );
+  } else {
+    notes.push(`Folder trust: no recorded decision for this project in ${file} — read project-tier rows as conditional.`);
+  }
+  const legacy = entries.flatMap((e) => asStringArray(e.allowedTools));
+  if (legacy.length > 0) {
+    const preview = legacy.slice(0, 5).map(redact).join(", ") + (legacy.length > 5 ? ", …" : "");
+    notes.push(
+      `Legacy per-project allowedTools list in ${file} (${legacy.length}): ${preview} — honoured by older Claude Code versions only; not merged into the declarations above (SR4). Review and remove if stale.`,
+    );
+  }
+  return notes;
+}
+
 export async function collectClaudeCode(projectRoots: string[]): Promise<CollectorResult> {
   const issues: ParseIssue[] = [];
   const home = os.homedir();
@@ -366,7 +393,7 @@ export async function collectClaudeCode(projectRoots: string[]): Promise<Collect
       permissionRules: settings.flatMap(rulesFrom),
       sandbox: sandboxFrom(settings),
       hooks: settings.flatMap(hooksFrom),
-      notes: [],
+      notes: trustNotesFrom(entries, claudeJsonPath),
     });
 
     if (mcpJson) {
