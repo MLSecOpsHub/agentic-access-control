@@ -21,6 +21,8 @@ Usage:
   agentlens scan [root ...]     collect, then serve the dashboard
   agentlens collect [root ...]  read local agent configs into a snapshot
   agentlens serve               serve the dashboard on 127.0.0.1
+  agentlens check [root ...]    headless: collect, print a report, exit 1 on findings
+                                [--format json|sarif] [--fail-on <severity>] [--no-write]
 
 Roots: project directories to scan. With none given: the current directory
 plus every project listed in ~/.claude.json (where Claude Code has run).
@@ -145,7 +147,9 @@ async function main() {
     console.log(HELP);
     return;
   }
-  const { flags, positional } = parseArgs(rest);
+  const { flags, positional } = parseArgs(
+    cmd === "check" ? rest.filter((a) => !/^--(format|fail-on|no-write)/.test(a)) : rest,
+  );
   if (flags.help) {
     console.log(HELP);
     return;
@@ -164,6 +168,15 @@ async function main() {
     case "serve":
       await serve(flags, dataDir);
       break;
+    case "check": {
+      // Pass-through: check.ts owns its own flags (--format, --fail-on, --no-write).
+      const r = spawnSync(
+        process.execPath,
+        [depBin("tsx", "dist/cli.mjs"), path.join(PKG_ROOT, "collectors", "check.ts"), ...rest.filter((a) => !/^--(data-dir|port|open)/.test(a))],
+        { stdio: "inherit", env: childEnv(dataDir) },
+      );
+      process.exit(r.status ?? 2);
+    }
     default:
       console.error(`agentlens: unknown command "${cmd}"\n`);
       console.error(HELP);
