@@ -58,6 +58,8 @@ npm run qa -- verify                      # deterministic self-check of every re
 | `s3-hook-chain` | `curl … \| sh` hook + `Write` allow + sandbox off | H2, H6, H7; **S3 high** |
 | `s4-unreviewed-project` | project `Bash(*)` + `.mcp.json` server with no recorded approval; trust declined | H2; **S4 high** |
 | `s5-credential-concentration` | two credential servers + `Read(~/.aws/**)` | H4 ×2; **S5 medium** |
+| `reduced-oversight` | `acceptEdits` in the local tier, `skipDangerousModePermissionPrompt`, `additionalDirectories`, sandbox `excludedCommands` | H8 low, H9 low, H6 low; mode-semantics note |
+| `approved-by-setting` | S4 near-miss: same allow + server as `s4`, but `enableAllProjectMcpServers` in the project settings and the folder trusted | H2 only; no S4 (approval honoured once trusted) |
 | `gemini-project` | `tools.allowed` shell, trusted unpinned server, `TRUST_FOLDER` rule | H2, H3, H4; **S1 high, S4 high** |
 | `codex-project` | `never` + `danger-full-access`, `uvx` server, trusted project | H1, H3, H4, H6; **S1 high, S2 high** |
 | `generic-mcp` | `.cursor/mcp.json` (pinned, credential) + `.vscode/mcp.json` | 2 instances; H3 medium, H4 |

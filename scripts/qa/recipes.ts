@@ -195,6 +195,61 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
+    id: "reduced-oversight",
+    platform: "claude-code",
+    purpose: "Modes short of bypass and the controls around them: acceptEdits in the local tier, the suppressed bypass confirmation, an additional directory, and sandbox excluded commands.",
+    files: {
+      ".claude/settings.local.json": {
+        permissions: { defaultMode: "acceptEdits", additionalDirectories: ["~/.aws"] },
+        skipDangerousModePermissionPrompt: true,
+      },
+      ".claude/settings.json": { sandbox: { enabled: true, excludedCommands: ["docker compose *"] } },
+    },
+    homeEntry: { hasTrustDialogAccepted: true },
+    expect: {
+      must: ["H8:low", "H9:low", "H6:low"],
+      mustNot: ["H1", "H2", "H3", "H4", "H7"],
+      scenarios: {},
+      notes: ["Mode semantics", "additionalDirectories", "excludedCommands"],
+    },
+    steps: [
+      {
+        action: "Open a session here and press Shift+Tab to cycle modes; exit. Then edit `.claude/settings.local.json` and change `defaultMode` to `\"auto\"`.",
+        expect: "mode changes in-session show on /live only; after the edit, the instance shows `auto` but no H8 — the vendor ignores `auto` set in project files, and the note says so.",
+        page: "/agents/<id> (Controls & flags, Mapping notes), /findings",
+      },
+      {
+        action: "Add a second `.mcp.json` server with a credential env key next to a first one, keeping `additionalDirectories: [\"~/.aws\"]`.",
+        expect: "S5 fires through the additional-directory atom (no Read rule needed): two credential-bearing servers plus file access over a credential store.",
+        page: "/threat-model",
+      },
+    ],
+  },
+  {
+    id: "approved-by-setting",
+    platform: "claude-code",
+    purpose: "S4 near-miss: the same team-writable allow and project MCP server as s4, but the repository approves its own servers via enableAllProjectMcpServers and the folder is trusted.",
+    files: {
+      ".claude/settings.json": { permissions: { allow: ["Bash(*)"] }, enableAllProjectMcpServers: true },
+      ".mcp.json": { mcpServers: { docs: { command: "node", args: ["./tools/docs-mcp.js"] } } },
+      "tools/docs-mcp.js": stub("docs-mcp"),
+    },
+    homeEntry: { hasTrustDialogAccepted: true },
+    expect: {
+      must: ["H2"],
+      mustNot: ["H1", "H3", "H4", "H6", "H7"],
+      scenarios: {},
+      notes: ["Folder trust: accepted"],
+    },
+    steps: [
+      {
+        action: "Live mode: open a session here before accepting the folder-trust dialog, then exit.",
+        expect: "until trust is recorded, the vendor ignores the repository's own approval — enablement stays null, S4 fires, and a note says the approval is ignored until the folder is trusted. Accept trust → approval counts → S4 severs.",
+        page: "/threat-model, /agents/<id> notes",
+      },
+    ],
+  },
+  {
     id: "gemini-project",
     platform: "gemini-cli",
     purpose: "Gemini CLI project tier: tools.allowed shell access, an unpinned trusted MCP server with a credential, a recorded TRUST_FOLDER rule.",
